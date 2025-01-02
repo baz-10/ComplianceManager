@@ -20,23 +20,13 @@ const createSectionSchema = z.object({
 });
 
 const createPolicySchema = z.object({
-  policy: z.object({
-    title: z.string().min(1, "Title is required"),
-    sectionId: z.number(),
-    status: z.string(),
-  }),
-  version: z.object({
-    bodyContent: z.string().min(1, "Content is required"),
-    effectiveDate: z.string().min(1, "Effective date is required"),
-  })
+  title: z.string().min(1, "Title is required"),
+  bodyContent: z.string().min(1, "Content is required"),
+  effectiveDate: z.string().min(1, "Effective date is required"),
 });
 
 type CreateSectionForm = z.infer<typeof createSectionSchema>;
-type CreatePolicyForm = {
-  title: string;
-  bodyContent: string;
-  effectiveDate: string;
-};
+type CreatePolicyForm = z.infer<typeof createPolicySchema>;
 
 export function ManualDetail() {
   const { id } = useParams();
@@ -53,6 +43,7 @@ export function ManualDetail() {
   });
 
   const policyForm = useForm<CreatePolicyForm>({
+    resolver: zodResolver(createPolicySchema),
     defaultValues: {
       title: "",
       bodyContent: "",
@@ -108,10 +99,14 @@ export function ManualDetail() {
           title: data.title,
           sectionId,
           status: "DRAFT",
+          createdById: user?.id,
+          policyId: 0, //Placeholder - Server should assign this
         },
         version: {
           bodyContent: data.bodyContent,
           effectiveDate: data.effectiveDate,
+          versionNumber: 1, // First version
+          createdById: user?.id,
         }
       };
 
@@ -123,8 +118,13 @@ export function ManualDetail() {
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error);
+        const errorText = await response.text();
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || errorText);
+        } catch {
+          throw new Error(errorText);
+        }
       }
 
       return response.json();
