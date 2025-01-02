@@ -4,6 +4,7 @@ import { setupAuth } from "./auth";
 import { ManualController } from "./controllers/manualController";
 import { SectionController } from "./controllers/sectionController";
 import { PolicyController } from "./controllers/policyController";
+import { AnnotationController } from "./controllers/annotationController";
 import { AdminController, trackDatabaseQueries } from "./controllers/adminController";
 import { isAdmin, isEditorOrAdmin, isAuthenticated } from "./middleware/roleMiddleware";
 
@@ -37,6 +38,12 @@ export function registerRoutes(app: Express): Server {
   app.post('/api/policies/:policyId/versions', isEditorOrAdmin, PolicyController.createVersion);
   app.get('/api/policies/:policyId/versions', isAuthenticated, PolicyController.getVersionHistory);
   app.post('/api/versions/:policyVersionId/acknowledge', isAuthenticated, PolicyController.acknowledge);
+
+  // Annotation routes
+  app.get('/api/versions/:policyVersionId/annotations', isAuthenticated, AnnotationController.list);
+  app.post('/api/annotations', isAuthenticated, AnnotationController.create);
+  app.post('/api/annotations/:annotationId/reply', isAuthenticated, AnnotationController.reply);
+  app.delete('/api/annotations/:id', isAuthenticated, AnnotationController.delete);
 
   const httpServer = createServer(app);
   return httpServer;

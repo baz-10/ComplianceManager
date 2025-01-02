@@ -73,13 +73,31 @@ export const acknowledgements = pgTable("acknowledgements", {
   acknowledgedAt: timestamp("acknowledged_at").defaultNow().notNull()
 });
 
+// Annotations table with fixed circular reference
+export const annotations = pgTable("annotations", {
+  id: serial("id").primaryKey(),
+  policyVersionId: integer("policy_version_id").references(() => policyVersions.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  content: text("content").notNull(),
+  startOffset: integer("start_offset").notNull(),
+  endOffset: integer("end_offset").notNull(),
+  selectedText: text("selected_text").notNull(),
+  parentId: integer("parent_id"),  // Will be set up in relations
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
+// Set up the self-referential relation after table definition
+annotations.path = [{ path: ["parentId"], references: () => annotations.id }];
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   manuals: many(manuals),
   sections: many(sections),
   policies: many(policies),
   policyVersions: many(policyVersions),
-  acknowledgements: many(acknowledgements)
+  acknowledgements: many(acknowledgements),
+  annotations: many(annotations)
 }));
 
 export const manualsRelations = relations(manuals, ({ one, many }) => ({
@@ -127,7 +145,8 @@ export const policyVersionsRelations = relations(policyVersions, ({ one, many })
     fields: [policyVersions.authorId],
     references: [users.id]
   }),
-  acknowledgements: many(acknowledgements)
+  acknowledgements: many(acknowledgements),
+  annotations: many(annotations)
 }));
 
 export const acknowledgementsRelations = relations(acknowledgements, ({ one }) => ({
@@ -138,6 +157,25 @@ export const acknowledgementsRelations = relations(acknowledgements, ({ one }) =
   policyVersion: one(policyVersions, {
     fields: [acknowledgements.policyVersionId],
     references: [policyVersions.id]
+  })
+}));
+
+export const annotationsRelations = relations(annotations, ({ one, many }) => ({
+  policyVersion: one(policyVersions, {
+    fields: [annotations.policyVersionId],
+    references: [policyVersions.id]
+  }),
+  user: one(users, {
+    fields: [annotations.userId],
+    references: [users.id]
+  }),
+  parentAnnotation: one(annotations, {
+    fields: [annotations.parentId],
+    references: [annotations.id]
+  }),
+  replies: many(annotations, {
+    fields: [annotations.id],
+    references: [annotations.parentId]
   })
 }));
 
@@ -171,3 +209,8 @@ export const insertAcknowledgementSchema = createInsertSchema(acknowledgements);
 export const selectAcknowledgementSchema = createSelectSchema(acknowledgements);
 export type Acknowledgement = typeof acknowledgements.$inferSelect;
 export type NewAcknowledgement = typeof acknowledgements.$inferInsert;
+
+export const insertAnnotationSchema = createInsertSchema(annotations);
+export const selectAnnotationSchema = createSelectSchema(annotations);
+export type Annotation = typeof annotations.$inferSelect;
+export type NewAnnotation = typeof annotations.$inferInsert;
