@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useUser } from "@/hooks/use-user";
 
 const createManualSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -23,6 +24,7 @@ export function ManualList() {
   const [_, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useUser();
 
   const form = useForm<CreateManualForm>({
     resolver: zodResolver(createManualSchema),
@@ -41,12 +43,16 @@ export function ManualList() {
       const response = await fetch("/api/manuals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          createdById: user?.id // Include the user ID in the request
+        }),
         credentials: "include",
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const error = await response.text();
+        throw new Error(error);
       }
 
       return response.json();
@@ -70,6 +76,14 @@ export function ManualList() {
   });
 
   const onSubmit = (data: CreateManualForm) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to create a manual",
+        variant: "destructive",
+      });
+      return;
+    }
     createManual.mutate(data);
   };
 
