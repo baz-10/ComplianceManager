@@ -100,13 +100,12 @@ export function ManualDetail() {
           sectionId,
           status: "DRAFT",
           createdById: user?.id,
-          policyId: 0, //Placeholder - Server should assign this
         },
         version: {
           bodyContent: data.bodyContent,
-          effectiveDate: data.effectiveDate,
-          versionNumber: 1, // First version
+          effectiveDate: new Date(data.effectiveDate).toISOString(),
           createdById: user?.id,
+          versionNumber: 1, // First version
         }
       };
 
@@ -236,8 +235,8 @@ export function ManualDetail() {
                       <FormItem>
                         <FormLabel>Description</FormLabel>
                         <FormControl>
-                          <Textarea 
-                            placeholder="Enter section description (optional)" 
+                          <Textarea
+                            placeholder="Enter section description (optional)"
                             {...field}
                           />
                         </FormControl>
@@ -300,8 +299,8 @@ export function ManualDetail() {
                                 <FormItem>
                                   <FormLabel>Content</FormLabel>
                                   <FormControl>
-                                    <Textarea 
-                                      placeholder="Enter policy content" 
+                                    <Textarea
+                                      placeholder="Enter policy content"
                                       className="min-h-[200px]"
                                       {...field}
                                     />
