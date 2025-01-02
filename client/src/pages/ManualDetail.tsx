@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, ArrowLeft } from "lucide-react";
+import { FileText, ArrowLeft, Plus } from "lucide-react";
 import { Link } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
@@ -19,7 +19,14 @@ const createSectionSchema = z.object({
   description: z.string().optional(),
 });
 
+const createPolicySchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  bodyContent: z.string().min(1, "Content is required"),
+  effectiveDate: z.string().min(1, "Effective date is required"),
+});
+
 type CreateSectionForm = z.infer<typeof createSectionSchema>;
+type CreatePolicyForm = z.infer<typeof createPolicySchema>;
 
 export function ManualDetail() {
   const { id } = useParams();
@@ -27,11 +34,20 @@ export function ManualDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const form = useForm<CreateSectionForm>({
+  const sectionForm = useForm<CreateSectionForm>({
     resolver: zodResolver(createSectionSchema),
     defaultValues: {
       title: "",
       description: "",
+    },
+  });
+
+  const policyForm = useForm<CreatePolicyForm>({
+    resolver: zodResolver(createPolicySchema),
+    defaultValues: {
+      title: "",
+      bodyContent: "",
+      effectiveDate: new Date().toISOString().split('T')[0],
     },
   });
 
@@ -65,7 +81,7 @@ export function ManualDetail() {
         title: "Success",
         description: "Section created successfully",
       });
-      form.reset();
+      sectionForm.reset();
     },
     onError: (error) => {
       toast({
@@ -76,7 +92,44 @@ export function ManualDetail() {
     },
   });
 
-  const onSubmit = (data: CreateSectionForm) => {
+  const createPolicy = useMutation({
+    mutationFn: async ({ sectionId, data }: { sectionId: number; data: CreatePolicyForm }) => {
+      const response = await fetch("/api/policies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          sectionId,
+          createdById: user?.id,
+          status: "DRAFT",
+        }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
+      toast({
+        title: "Success",
+        description: "Policy created successfully",
+      });
+      policyForm.reset();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmitSection = (data: CreateSectionForm) => {
     if (!user) {
       toast({
         title: "Error",
@@ -86,6 +139,20 @@ export function ManualDetail() {
       return;
     }
     createSection.mutate(data);
+  };
+
+  const onSubmitPolicy = (sectionId: number) => {
+    return (data: CreatePolicyForm) => {
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to create a policy",
+          variant: "destructive",
+        });
+        return;
+      }
+      createPolicy.mutate({ sectionId, data });
+    };
   };
 
   if (isLoading) {
@@ -131,10 +198,10 @@ export function ManualDetail() {
               <DialogHeader>
                 <DialogTitle>Create New Section</DialogTitle>
               </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <Form {...sectionForm}>
+                <form onSubmit={sectionForm.handleSubmit(onSubmitSection)} className="space-y-4">
                   <FormField
-                    control={form.control}
+                    control={sectionForm.control}
                     name="title"
                     render={({ field }) => (
                       <FormItem>
@@ -146,7 +213,7 @@ export function ManualDetail() {
                     )}
                   />
                   <FormField
-                    control={form.control}
+                    control={sectionForm.control}
                     name="description"
                     render={({ field }) => (
                       <FormItem>
@@ -179,8 +246,85 @@ export function ManualDetail() {
                 <CardDescription>{section.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-sm text-muted-foreground">
-                  {section.policies?.length || 0} policies
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm text-muted-foreground">
+                      {section.policies?.length || 0} policies
+                    </div>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Policy
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Create New Policy</DialogTitle>
+                        </DialogHeader>
+                        <Form {...policyForm}>
+                          <form onSubmit={policyForm.handleSubmit(onSubmitPolicy(section.id))} className="space-y-4">
+                            <FormField
+                              control={policyForm.control}
+                              name="title"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Title</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Enter policy title" {...field} />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={policyForm.control}
+                              name="bodyContent"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Content</FormLabel>
+                                  <FormControl>
+                                    <Textarea 
+                                      placeholder="Enter policy content" 
+                                      className="min-h-[200px]"
+                                      {...field}
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={policyForm.control}
+                              name="effectiveDate"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Effective Date</FormLabel>
+                                  <FormControl>
+                                    <Input type="date" {...field} />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                            <div className="flex justify-end">
+                              <Button type="submit" disabled={createPolicy.isPending}>
+                                {createPolicy.isPending ? "Creating..." : "Create Policy"}
+                              </Button>
+                            </div>
+                          </form>
+                        </Form>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+
+                  {section.policies?.map((policy) => (
+                    <Card key={policy.id} className="bg-accent">
+                      <CardHeader>
+                        <CardTitle className="text-base">{policy.title}</CardTitle>
+                        <CardDescription className="text-xs">
+                          Status: {policy.status}
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+                  ))}
                 </div>
               </CardContent>
             </Card>
