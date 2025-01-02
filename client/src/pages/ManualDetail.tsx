@@ -98,14 +98,22 @@ export function ManualDetail() {
         throw new Error("User ID is required");
       }
 
+      // Format date as ISO string for consistency
+      const formattedDate = new Date(data.effectiveDate).toISOString();
+
       const policyData = {
-        title: data.title,
-        bodyContent: data.bodyContent,
-        effectiveDate: new Date(data.effectiveDate),
-        sectionId,
-        authorId: user.id,
-        status: "DRAFT",
-        versionNumber: 1
+        policy: {
+          title: data.title,
+          sectionId: sectionId,
+          authorId: user.id,
+          status: "DRAFT"
+        },
+        version: {
+          bodyContent: data.bodyContent,
+          effectiveDate: formattedDate,
+          authorId: user.id,
+          versionNumber: 1
+        }
       };
 
       const response = await fetch("/api/policies", {
