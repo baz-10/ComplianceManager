@@ -20,13 +20,23 @@ const createSectionSchema = z.object({
 });
 
 const createPolicySchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  bodyContent: z.string().min(1, "Content is required"),
-  effectiveDate: z.string().min(1, "Effective date is required"),
+  policy: z.object({
+    title: z.string().min(1, "Title is required"),
+    sectionId: z.number(),
+    status: z.string(),
+  }),
+  version: z.object({
+    bodyContent: z.string().min(1, "Content is required"),
+    effectiveDate: z.string().min(1, "Effective date is required"),
+  })
 });
 
 type CreateSectionForm = z.infer<typeof createSectionSchema>;
-type CreatePolicyForm = z.infer<typeof createPolicySchema>;
+type CreatePolicyForm = {
+  title: string;
+  bodyContent: string;
+  effectiveDate: string;
+};
 
 export function ManualDetail() {
   const { id } = useParams();
@@ -43,7 +53,6 @@ export function ManualDetail() {
   });
 
   const policyForm = useForm<CreatePolicyForm>({
-    resolver: zodResolver(createPolicySchema),
     defaultValues: {
       title: "",
       bodyContent: "",
@@ -94,20 +103,28 @@ export function ManualDetail() {
 
   const createPolicy = useMutation({
     mutationFn: async ({ sectionId, data }: { sectionId: number; data: CreatePolicyForm }) => {
+      const policyData = {
+        policy: {
+          title: data.title,
+          sectionId,
+          status: "DRAFT",
+        },
+        version: {
+          bodyContent: data.bodyContent,
+          effectiveDate: data.effectiveDate,
+        }
+      };
+
       const response = await fetch("/api/policies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          sectionId,
-          createdById: user?.id,
-          status: "DRAFT",
-        }),
+        body: JSON.stringify(policyData),
         credentials: "include",
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const error = await response.text();
+        throw new Error(error);
       }
 
       return response.json();
