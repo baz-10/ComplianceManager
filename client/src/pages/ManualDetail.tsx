@@ -100,15 +100,12 @@ export function ManualDetail() {
 
       const policyData = {
         title: data.title,
-        sectionId: sectionId,
+        bodyContent: data.bodyContent,
+        effectiveDate: new Date(data.effectiveDate),
+        sectionId,
         authorId: user.id,
         status: "DRAFT",
-        version: {
-          bodyContent: data.bodyContent,
-          effectiveDate: new Date(data.effectiveDate),
-          authorId: user.id,
-          versionNumber: 1
-        }
+        versionNumber: 1
       };
 
       const response = await fetch("/api/policies", {
