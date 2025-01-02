@@ -28,6 +28,26 @@ const createPolicySchema = z.object({
 type CreateSectionForm = z.infer<typeof createSectionSchema>;
 type CreatePolicyForm = z.infer<typeof createPolicySchema>;
 
+interface Policy {
+  id: number;
+  title: string;
+  status: string;
+}
+
+interface Section {
+  id: number;
+  title: string;
+  description?: string;
+  policies?: Policy[];
+}
+
+interface Manual {
+  id: number;
+  title: string;
+  description?: string;
+  sections?: Section[];
+}
+
 export function ManualDetail() {
   const { id } = useParams();
   const { user } = useUser();
@@ -51,7 +71,7 @@ export function ManualDetail() {
     },
   });
 
-  const { data: manual, isLoading, error } = useQuery({
+  const { data: manual, isLoading, error } = useQuery<Manual>({
     queryKey: [`/api/manuals/${id}`],
   });
 
@@ -108,7 +128,7 @@ export function ManualDetail() {
         },
         version: {
           bodyContent: data.bodyContent,
-          effectiveDate: data.effectiveDate, // Send as YYYY-MM-DD string
+          effectiveDate: new Date(data.effectiveDate).toISOString().split('T')[0], // Format as YYYY-MM-DD
           createdById: user.id,
           authorId: user.id,
           versionNumber: 1,
