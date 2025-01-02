@@ -106,7 +106,7 @@ export function setupAuth(app: Express) {
           .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
 
-      const { username, password, role } = result.data;
+      const { username, password } = result.data;
 
       const [existingUser] = await db
         .select()
@@ -120,12 +120,13 @@ export function setupAuth(app: Express) {
 
       const hashedPassword = await crypto.hash(password);
 
+      // Assign EDITOR role for now to allow manual creation
       const [newUser] = await db
         .insert(users)
         .values({
           username,
           password: hashedPassword,
-          role: role || "READER",
+          role: "EDITOR", // Changed from default READER to EDITOR
         })
         .returning();
 
