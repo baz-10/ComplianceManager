@@ -6,12 +6,10 @@ import { Home } from "./pages/Home";
 import { ManualList } from "./pages/ManualList";
 import { ManualDetail } from "./pages/ManualDetail";
 import { AdminDashboard } from "./pages/AdminDashboard";
-import { useQuery } from "@tanstack/react-query";
+import { useUser } from "./hooks/use-user";
 
 function App() {
-  const { data: user } = useQuery({
-    queryKey: ['/api/user'],
-  });
+  const { data: user } = useUser();
 
   return (
     <div className="min-h-screen bg-background">
@@ -31,7 +29,6 @@ function App() {
   );
 }
 
-// fallback 404 not found page
 function NotFound() {
   return (
     <div className="min-h-[80vh] w-full flex items-center justify-center">

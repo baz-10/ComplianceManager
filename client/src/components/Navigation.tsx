@@ -1,13 +1,11 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
 import { Activity } from "lucide-react";
+import { useUser } from "@/hooks/use-user";
 
 export function Navigation() {
   const [location] = useLocation();
-  const { data: user } = useQuery({
-    queryKey: ['/api/user'],
-  });
+  const { data: user } = useUser();
 
   const navItems = [
     { href: "/", label: "Home" },
