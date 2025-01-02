@@ -131,11 +131,11 @@ export function ManualDetail() {
         },
         version: {
           bodyContent: data.bodyContent,
-          effectiveDate: data.effectiveDate, // Already in YYYY-MM-DD format from the form
+          effectiveDate: data.effectiveDate, // Using the validated YYYY-MM-DD string directly
           createdById: user.id,
           authorId: user.id,
           versionNumber: 1,
-          policyId: 0 // This will be assigned by the server
+          policyId: 0 // Will be set by server
         }
       };
 
