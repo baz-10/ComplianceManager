@@ -28,9 +28,9 @@ const crypto = {
   },
 };
 
-declare module 'express-serve-static-core' {
-  interface Request {
-    user?: User;
+declare global {
+  namespace Express {
+    interface User extends User {}
   }
 }
 
@@ -118,15 +118,18 @@ export function setupAuth(app: Express) {
         return res.status(400).send("Username already exists");
       }
 
+      // Check if this is the first user
+      const allUsers = await db.select().from(users);
+      const role = allUsers.length === 0 ? "ADMIN" : "EDITOR";
+
       const hashedPassword = await crypto.hash(password);
 
-      // Assign EDITOR role for now to allow manual creation
       const [newUser] = await db
         .insert(users)
         .values({
           username,
           password: hashedPassword,
-          role: "EDITOR", // Changed from default READER to EDITOR
+          role,
         })
         .returning();
 
