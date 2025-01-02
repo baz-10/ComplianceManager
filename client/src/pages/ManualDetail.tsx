@@ -94,18 +94,20 @@ export function ManualDetail() {
 
   const createPolicy = useMutation({
     mutationFn: async ({ sectionId, data }: { sectionId: number; data: CreatePolicyForm }) => {
+      if (!user?.id) {
+        throw new Error("User ID is required");
+      }
+
       const policyData = {
-        policy: {
-          title: data.title,
-          sectionId,
-          status: "DRAFT",
-          createdById: user?.id,
-        },
+        title: data.title,
+        sectionId: sectionId,
+        authorId: user.id,
+        status: "DRAFT",
         version: {
           bodyContent: data.bodyContent,
-          effectiveDate: new Date(data.effectiveDate).toISOString(),
-          createdById: user?.id,
-          versionNumber: 1, // First version
+          effectiveDate: new Date(data.effectiveDate),
+          authorId: user.id,
+          versionNumber: 1
         }
       };
 
