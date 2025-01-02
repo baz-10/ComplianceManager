@@ -1,11 +1,12 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Activity } from "lucide-react";
+import { Activity, LogOut } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
+import { Button } from "@/components/ui/button";
 
 export function Navigation() {
   const [location] = useLocation();
-  const { data: user } = useUser();
+  const { user, logout } = useUser();
 
   const navItems = [
     { href: "/", label: "Home" },
@@ -14,6 +15,14 @@ export function Navigation() {
       { href: "/admin/dashboard", label: "Performance", icon: Activity }
     ] : [])
   ];
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Failed to logout:', error);
+    }
+  };
 
   return (
     <header className="border-b">
@@ -40,8 +49,19 @@ export function Navigation() {
             ))}
           </div>
           {user && (
-            <div className="ml-auto text-sm text-muted-foreground">
-              {user.username} ({user.role})
+            <div className="ml-auto flex items-center gap-4">
+              <span className="text-sm text-muted-foreground">
+                {user.username} ({user.role})
+              </span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleLogout}
+                className="flex items-center gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </Button>
             </div>
           )}
         </nav>
