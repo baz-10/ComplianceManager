@@ -4,5 +4,7 @@ import type { User } from "@/types/user";
 export function useUser() {
   return useQuery<User | null>({
     queryKey: ['/api/user'],
+    retry: false,
+    staleTime: Infinity,
   });
 }

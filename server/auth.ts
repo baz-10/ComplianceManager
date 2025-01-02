@@ -28,9 +28,9 @@ const crypto = {
   },
 };
 
-declare global {
-  namespace Express {
-    interface User extends User {}
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: User;
   }
 }
 
@@ -80,7 +80,7 @@ export function setupAuth(app: Express) {
     })
   );
 
-  passport.serializeUser((user, done) => {
+  passport.serializeUser((user: User, done) => {
     done(null, user.id);
   });
 
@@ -125,7 +125,7 @@ export function setupAuth(app: Express) {
         .values({
           username,
           password: hashedPassword,
-          role: role || "READER"
+          role: role || "READER",
         })
         .returning();
 
@@ -151,7 +151,7 @@ export function setupAuth(app: Express) {
         .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
     }
 
-    passport.authenticate("local", (err: any, user: Express.User, info: IVerifyOptions) => {
+    passport.authenticate("local", (err: any, user: User, info: IVerifyOptions) => {
       if (err) {
         return next(err);
       }

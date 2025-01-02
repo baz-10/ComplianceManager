@@ -1,6 +1,6 @@
 import { Switch, Route } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { Navigation } from "./components/Navigation";
 import { Home } from "./pages/Home";
 import { ManualList } from "./pages/ManualList";
@@ -9,7 +9,15 @@ import { AdminDashboard } from "./pages/AdminDashboard";
 import { useUser } from "./hooks/use-user";
 
 function App() {
-  const { data: user } = useUser();
+  const { data: user, isLoading } = useUser();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

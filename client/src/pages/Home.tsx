@@ -1,9 +1,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Book, Layers } from "lucide-react";
-import { Link } from "wouter";
+import { useLocation } from "wouter";
+import { useUser } from "@/hooks/use-user";
 
 export function Home() {
+  const { data: user } = useUser();
+  const [_, navigate] = useLocation();
+
   return (
     <div className="space-y-8">
       <div className="space-y-2">
@@ -21,9 +25,12 @@ export function Home() {
             <CardDescription>Create and manage document manuals</CardDescription>
           </CardHeader>
           <CardContent>
-            <Link href="/manuals">
-              <Button className="w-full">View Manuals</Button>
-            </Link>
+            <Button 
+              className="w-full"
+              onClick={() => navigate("/manuals")}
+            >
+              View Manuals
+            </Button>
           </CardContent>
         </Card>
 
@@ -34,7 +41,12 @@ export function Home() {
             <CardDescription>Organize content into sections</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" variant="outline">Learn More</Button>
+            <Button 
+              className="w-full"
+              onClick={() => navigate("/sections")}
+            >
+              Browse Sections
+            </Button>
           </CardContent>
         </Card>
 
@@ -45,10 +57,26 @@ export function Home() {
             <CardDescription>Manage and track policy documents</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" variant="outline">Learn More</Button>
+            <Button 
+              className="w-full"
+              onClick={() => navigate("/policies")}
+            >
+              View Policies
+            </Button>
           </CardContent>
         </Card>
       </div>
+
+      {user?.role === 'ADMIN' && (
+        <div className="mt-8">
+          <Button 
+            variant="outline"
+            onClick={() => navigate("/admin/dashboard")}
+          >
+            View Performance Dashboard
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
