@@ -29,7 +29,10 @@ export const PolicyController = {
   async create(req: Request, res: Response) {
     try {
       const policyResult = insertPolicySchema.safeParse(req.body.policy);
-      const versionResult = insertPolicyVersionSchema.safeParse(req.body.version);
+      const versionResult = insertPolicyVersionSchema.safeParse({
+        ...req.body.version,
+        effectiveDate: new Date(req.body.version.effectiveDate)
+      });
 
       if (!policyResult.success || !versionResult.success) {
         return res.status(400).json({ 
@@ -73,6 +76,7 @@ export const PolicyController = {
 
       res.status(201).json({ policy, version });
     } catch (error) {
+      console.error('Policy creation error:', error);
       res.status(500).json({ error: 'Failed to create policy' });
     }
   },
