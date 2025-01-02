@@ -6,10 +6,11 @@ import { Home } from "./pages/Home";
 import { ManualList } from "./pages/ManualList";
 import { ManualDetail } from "./pages/ManualDetail";
 import { AdminDashboard } from "./pages/AdminDashboard";
+import { AuthPage } from "./pages/AuthPage";
 import { useUser } from "./hooks/use-user";
 
 function App() {
-  const { data: user, isLoading } = useUser();
+  const { user, isLoading } = useUser();
 
   if (isLoading) {
     return (
@@ -17,6 +18,10 @@ function App() {
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
+  }
+
+  if (!user) {
+    return <AuthPage />;
   }
 
   return (
