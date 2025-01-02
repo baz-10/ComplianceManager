@@ -1,21 +1,31 @@
 import { Switch, Route } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
+import { Navigation } from "./components/Navigation";
+import { Home } from "./pages/Home";
+import { ManualList } from "./pages/ManualList";
+import { ManualDetail } from "./pages/ManualDetail";
 
 function App() {
   return (
-    <Switch>
-      {/* Add pages below */}
-      {/* <Route path="/" component={Home}/> */}
-      <Route component={NotFound} />
-    </Switch>
+    <div className="min-h-screen bg-background">
+      <Navigation />
+      <main className="container mx-auto px-4 py-8">
+        <Switch>
+          <Route path="/" component={Home} />
+          <Route path="/manuals" component={ManualList} />
+          <Route path="/manuals/:id" component={ManualDetail} />
+          <Route component={NotFound} />
+        </Switch>
+      </main>
+    </div>
   );
 }
 
 // fallback 404 not found page
 function NotFound() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
+    <div className="min-h-[80vh] w-full flex items-center justify-center">
       <Card className="w-full max-w-md mx-4">
         <CardContent className="pt-6">
           <div className="flex mb-4 gap-2">
@@ -24,7 +34,7 @@ function NotFound() {
           </div>
 
           <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
+            The page you're looking for doesn't exist.
           </p>
         </CardContent>
       </Card>
