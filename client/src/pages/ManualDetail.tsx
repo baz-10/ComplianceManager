@@ -98,21 +98,24 @@ export function ManualDetail() {
         throw new Error("User ID is required");
       }
 
-      // Format date as ISO string for consistency
-      const formattedDate = new Date(data.effectiveDate).toISOString();
+      // Convert the date string to a Date object for the server
+      const formattedDate = new Date(data.effectiveDate);
 
       const policyData = {
         policy: {
           title: data.title,
           sectionId: sectionId,
+          createdById: user.id,
           authorId: user.id,
-          status: "DRAFT"
+          status: "DRAFT",
         },
         version: {
           bodyContent: data.bodyContent,
           effectiveDate: formattedDate,
+          createdById: user.id,
           authorId: user.id,
-          versionNumber: 1
+          versionNumber: 1,
+          policyId: 0 // This will be assigned by the server
         }
       };
 
