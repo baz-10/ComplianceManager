@@ -19,10 +19,11 @@ const createSectionSchema = z.object({
   description: z.string().optional(),
 });
 
+// Update policy schema to handle date properly
 const createPolicySchema = z.object({
   title: z.string().min(1, "Title is required"),
   bodyContent: z.string().min(1, "Content is required"),
-  effectiveDate: z.string().min(1, "Effective date is required"),
+  effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
 });
 
 type CreateSectionForm = z.infer<typeof createSectionSchema>;
@@ -62,12 +63,14 @@ export function ManualDetail() {
     },
   });
 
+  // Initialize form with today's date in YYYY-MM-DD format
+  const today = new Date().toISOString().split('T')[0];
   const policyForm = useForm<CreatePolicyForm>({
     resolver: zodResolver(createPolicySchema),
     defaultValues: {
       title: "",
       bodyContent: "",
-      effectiveDate: new Date().toISOString().split('T')[0],
+      effectiveDate: today,
     },
   });
 
@@ -128,7 +131,7 @@ export function ManualDetail() {
         },
         version: {
           bodyContent: data.bodyContent,
-          effectiveDate: new Date(data.effectiveDate).toISOString().split('T')[0], // Format as YYYY-MM-DD
+          effectiveDate: data.effectiveDate, // Already in YYYY-MM-DD format from the form
           createdById: user.id,
           authorId: user.id,
           versionNumber: 1,
@@ -161,7 +164,11 @@ export function ManualDetail() {
         title: "Success",
         description: "Policy created successfully",
       });
-      policyForm.reset();
+      policyForm.reset({
+        title: "",
+        bodyContent: "",
+        effectiveDate: new Date().toISOString().split('T')[0], // Reset to today's date
+      });
     },
     onError: (error) => {
       toast({
