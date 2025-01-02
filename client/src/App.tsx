@@ -5,8 +5,14 @@ import { Navigation } from "./components/Navigation";
 import { Home } from "./pages/Home";
 import { ManualList } from "./pages/ManualList";
 import { ManualDetail } from "./pages/ManualDetail";
+import { AdminDashboard } from "./pages/AdminDashboard";
+import { useQuery } from "@tanstack/react-query";
 
 function App() {
+  const { data: user } = useQuery({
+    queryKey: ['/api/user'],
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -15,6 +21,9 @@ function App() {
           <Route path="/" component={Home} />
           <Route path="/manuals" component={ManualList} />
           <Route path="/manuals/:id" component={ManualDetail} />
+          {user?.role === 'ADMIN' && (
+            <Route path="/admin/dashboard" component={AdminDashboard} />
+          )}
           <Route component={NotFound} />
         </Switch>
       </main>

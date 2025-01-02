@@ -4,11 +4,18 @@ import { setupAuth } from "./auth";
 import { ManualController } from "./controllers/manualController";
 import { SectionController } from "./controllers/sectionController";
 import { PolicyController } from "./controllers/policyController";
+import { AdminController, trackDatabaseQueries } from "./controllers/adminController";
 import { isAdmin, isEditorOrAdmin, isAuthenticated } from "./middleware/roleMiddleware";
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes
   setupAuth(app);
+
+  // Track database queries
+  app.use(trackDatabaseQueries);
+
+  // Admin routes
+  app.get('/api/admin/performance', isAdmin, AdminController.getPerformanceMetrics);
 
   // Manual routes
   app.get('/api/manuals', isAuthenticated, ManualController.list);
