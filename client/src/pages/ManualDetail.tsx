@@ -98,9 +98,6 @@ export function ManualDetail() {
         throw new Error("User ID is required");
       }
 
-      // Convert the date string to a Date object for the server
-      const formattedDate = new Date(data.effectiveDate);
-
       const policyData = {
         policy: {
           title: data.title,
@@ -111,7 +108,7 @@ export function ManualDetail() {
         },
         version: {
           bodyContent: data.bodyContent,
-          effectiveDate: formattedDate,
+          effectiveDate: data.effectiveDate, // Send as YYYY-MM-DD string
           createdById: user.id,
           authorId: user.id,
           versionNumber: 1,
