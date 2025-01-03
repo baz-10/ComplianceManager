@@ -486,63 +486,65 @@ export function ManualDetail() {
                     Add a new policy to this section.
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  policyForm.handleSubmit(onSubmitPolicy(section.id))();
-                }} className="space-y-4">
-                  <FormField
-                    control={policyForm.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Title</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter policy title" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={policyForm.control}
-                    name="bodyContent"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Content</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Enter policy content"
-                            {...field}
-                            rows={6}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={policyForm.control}
-                    name="effectiveDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Effective Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <DialogFooter>
-                    <Button type="submit" disabled={createPolicy.isPending}>
-                      {createPolicy.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating...
-                        </>
-                      ) : (
-                        "Create Policy"
+                <Form {...policyForm}>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    policyForm.handleSubmit(onSubmitPolicy(section.id))();
+                  }} className="space-y-4">
+                    <FormField
+                      control={policyForm.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Title</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter policy title" {...field} />
+                          </FormControl>
+                        </FormItem>
                       )}
-                    </Button>
-                  </DialogFooter>
-                </form>
+                    />
+                    <FormField
+                      control={policyForm.control}
+                      name="bodyContent"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Content</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Enter policy content"
+                              {...field}
+                              rows={6}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={policyForm.control}
+                      name="effectiveDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Effective Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <DialogFooter>
+                      <Button type="submit" disabled={createPolicy.isPending}>
+                        {createPolicy.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          "Create Policy"
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
               </DialogContent>
             </Dialog>
           </CardContent>
