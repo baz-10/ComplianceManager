@@ -6,6 +6,7 @@ import { Home } from "./pages/Home";
 import { ManualList } from "./pages/ManualList";
 import { ManualDetail } from "./pages/ManualDetail";
 import { AdminDashboard } from "./pages/AdminDashboard";
+import { UserManagement } from "./pages/UserManagement";
 import { AuthPage } from "./pages/AuthPage";
 import { useUser } from "./hooks/use-user";
 
@@ -33,7 +34,10 @@ function App() {
           <Route path="/manuals" component={ManualList} />
           <Route path="/manuals/:id" component={ManualDetail} />
           {user?.role === 'ADMIN' && (
-            <Route path="/admin/dashboard" component={AdminDashboard} />
+            <>
+              <Route path="/admin/dashboard" component={AdminDashboard} />
+              <Route path="/admin/users" component={UserManagement} />
+            </>
           )}
           <Route component={NotFound} />
         </Switch>

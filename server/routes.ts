@@ -7,6 +7,7 @@ import { PolicyController } from "./controllers/policyController";
 import { AnnotationController } from "./controllers/annotationController";
 import { AdminController, trackDatabaseQueries } from "./controllers/adminController";
 import { AIPolicyController } from "./controllers/aiPolicyController";
+import { UserController } from "./controllers/userController";
 import { isAdmin, isEditorOrAdmin, isAuthenticated } from "./middleware/roleMiddleware";
 
 export function registerRoutes(app: Express): Server {
@@ -15,6 +16,11 @@ export function registerRoutes(app: Express): Server {
 
   // Track database queries
   app.use(trackDatabaseQueries);
+
+  // User Management routes (admin only)
+  app.get('/api/users', isAdmin, UserController.list);
+  app.put('/api/users/:userId/role', isAdmin, UserController.updateRole);
+  app.delete('/api/users/:userId', isAdmin, UserController.removeUser);
 
   // Admin routes
   app.get('/api/admin/performance', isAdmin, AdminController.getPerformanceMetrics);
