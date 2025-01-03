@@ -6,6 +6,7 @@ import { SectionController } from "./controllers/sectionController";
 import { PolicyController } from "./controllers/policyController";
 import { AnnotationController } from "./controllers/annotationController";
 import { AdminController, trackDatabaseQueries } from "./controllers/adminController";
+import { AIPolicyController } from "./controllers/aiPolicyController";
 import { isAdmin, isEditorOrAdmin, isAuthenticated } from "./middleware/roleMiddleware";
 
 export function registerRoutes(app: Express): Server {
@@ -17,6 +18,10 @@ export function registerRoutes(app: Express): Server {
 
   // Admin routes
   app.get('/api/admin/performance', isAdmin, AdminController.getPerformanceMetrics);
+
+  // AI Policy routes
+  app.post('/api/policies/:policyId/suggest', isEditorOrAdmin, AIPolicyController.suggestImprovements);
+  app.post('/api/policies/generate-draft', isEditorOrAdmin, AIPolicyController.generateDraft);
 
   // Manual routes
   app.get('/api/manuals', isAuthenticated, ManualController.list);

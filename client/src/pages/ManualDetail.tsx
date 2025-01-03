@@ -31,6 +31,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import React from 'react';
+import { PolicyAITools } from "@/components/PolicyAITools";
 
 // Update policy schema to handle date properly
 const createPolicySchema = z.object({
@@ -488,6 +489,9 @@ export function ManualDetail() {
       </div>
 
       <p className="text-muted-foreground">{manual.description}</p>
+
+      {/* AI Policy Tools */}
+      <PolicyAITools />
 
       <div className="space-y-4">
         <div className="flex justify-between items-center">
