@@ -13,20 +13,21 @@ export const AdminController = {
   async getPerformanceMetrics(_req: Request, res: Response) {
     try {
       // Fetch total counts
-      const [totalStats] = await db.execute(sql`
+      const totalStatsResult = await db.execute(sql`
         SELECT 
-          (SELECT COUNT(*) FROM policies) as total_policies,
-          (SELECT COUNT(*) FROM users) as total_users,
-          (SELECT COUNT(*) FROM acknowledgements) as total_acknowledgements,
-          (SELECT COUNT(*) FROM policy_versions) as total_versions
+          (SELECT COUNT(*) FROM policies)::int as total_policies,
+          (SELECT COUNT(*) FROM users)::int as total_users,
+          (SELECT COUNT(*) FROM acknowledgements)::int as total_acknowledgements,
+          (SELECT COUNT(*) FROM policy_versions)::int as total_versions
       `);
+      const totalStats = totalStatsResult[0];
 
       // Get most viewed policies (based on acknowledgments)
-      const topPolicies = await db.execute(sql`
+      const topPoliciesResult = await db.execute(sql`
         SELECT 
           p.id,
           p.title,
-          COUNT(a.id) as acknowledgement_count,
+          COUNT(a.id)::int as acknowledgement_count,
           s.title as section_title,
           m.title as manual_title
         FROM policies p 
@@ -36,12 +37,12 @@ export const AdminController = {
         LEFT JOIN sections s ON p.section_id = s.id
         LEFT JOIN manuals m ON s.manual_id = m.id
         GROUP BY p.id, p.title, s.title, m.title
-        ORDER BY acknowledgement_count DESC
+        ORDER BY COUNT(a.id) DESC
         LIMIT 5
       `);
 
       // Recent activity
-      const recentActivity = await db.execute(sql`
+      const recentActivityResult = await db.execute(sql`
         SELECT 
           u.username,
           p.title as policy_title,
@@ -56,24 +57,26 @@ export const AdminController = {
       `);
 
       // User engagement over time (last 30 days)
-      const userEngagement = await db.execute(sql`
+      const userEngagementResult = await db.execute(sql`
         SELECT 
-          DATE(acknowledged_at) as date,
-          COUNT(*) as count
+          DATE(acknowledged_at)::text as date,
+          COUNT(*)::int as count
         FROM acknowledgements
         WHERE acknowledged_at > NOW() - INTERVAL '30 days'
         GROUP BY DATE(acknowledged_at)
-        ORDER BY date
+        ORDER BY date DESC
+        LIMIT 30
       `);
 
       // Section completion rates
-      const sectionStats = await db.execute(sql`
+      const sectionStatsResult = await db.execute(sql`
         WITH section_policy_counts AS (
           SELECT 
             s.id,
             s.title,
-            COUNT(DISTINCT p.id) as total_policies,
-            COUNT(DISTINCT a.id) as total_acknowledgements
+            COUNT(DISTINCT p.id)::int as total_policies,
+            COUNT(DISTINCT a.id)::int as total_acknowledgements,
+            (SELECT COUNT(*)::int FROM users) as total_users
           FROM sections s
           LEFT JOIN policies p ON p.section_id = s.id
           LEFT JOIN policy_versions pv ON pv.policy_id = p.id
@@ -86,8 +89,8 @@ export const AdminController = {
           total_policies,
           total_acknowledgements,
           CASE 
-            WHEN total_policies > 0 
-            THEN ROUND((total_acknowledgements::float / (total_policies * (SELECT COUNT(*) FROM users)))::numeric * 100, 2)
+            WHEN total_policies > 0 AND total_users > 0
+            THEN ROUND((total_acknowledgements::float / (total_policies * total_users))::numeric * 100, 2)
             ELSE 0 
           END as completion_rate
         FROM section_policy_counts
@@ -96,10 +99,10 @@ export const AdminController = {
 
       res.json({
         totalStats,
-        topPolicies,
-        recentActivity,
-        userEngagement,
-        sectionStats
+        topPolicies: topPoliciesResult,
+        recentActivity: recentActivityResult,
+        userEngagement: userEngagementResult,
+        sectionStats: sectionStatsResult
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);
