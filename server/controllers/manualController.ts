@@ -14,7 +14,15 @@ export const ManualController = {
     try {
       const allManuals = await db.query.manuals.findMany({
         with: {
-          sections: true,
+          sections: {
+            with: {
+              policies: {
+                with: {
+                  currentVersion: true
+                }
+              }
+            }
+          },
           createdBy: true
         }
       });
@@ -97,7 +105,15 @@ export const ManualController = {
       const manual = await db.query.manuals.findFirst({
         where: eq(manuals.id, parseInt(id)),
         with: {
-          sections: true,
+          sections: {
+            with: {
+              policies: {
+                with: {
+                  currentVersion: true
+                }
+              }
+            }
+          },
           createdBy: true
         }
       });
