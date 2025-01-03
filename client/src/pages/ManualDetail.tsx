@@ -30,6 +30,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import React from 'react';
 
 // Update policy schema to handle date properly
 const createPolicySchema = z.object({
@@ -68,6 +69,50 @@ const createSectionSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
 });
+
+function SortablePolicy({ policy, sectionIndex, policyIndex, children }: {
+  policy: Policy;
+  sectionIndex: number;
+  policyIndex: number;
+  children: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: policy.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card className="group bg-accent">
+        <CardHeader>
+          <div className="flex items-start gap-2">
+            <span
+              className="cursor-grab opacity-0 group-hover:opacity-100 transition-opacity mt-1"
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
+            </span>
+            <span className="text-sm font-medium text-muted-foreground mt-1">
+              {sectionIndex + 1}.{policyIndex + 1}
+            </span>
+            {children}
+          </div>
+        </CardHeader>
+      </Card>
+    </div>
+  );
+}
 
 export function ManualDetail() {
   const { id } = useParams();
@@ -263,6 +308,37 @@ export function ManualDetail() {
     },
   });
 
+  const reorderPolicies = useMutation({
+    mutationFn: async ({ sectionId, policyIds }: { sectionId: number; policyIds: number[] }) => {
+      const response = await fetch(`/api/sections/${sectionId}/policies/reorder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderMap: policyIds }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
+      toast({
+        title: "Success",
+        description: "Policies reordered successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
 
@@ -336,7 +412,65 @@ export function ManualDetail() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>{children}</CardContent>
+          <CardContent>
+            {section.policies?.length > 0 && (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={(event) => {
+                  const { active, over } = event;
+
+                  if (!over || active.id === over.id || !section.policies) {
+                    return;
+                  }
+
+                  const oldIndex = section.policies.findIndex((policy) => policy.id === active.id);
+                  const newIndex = section.policies.findIndex((policy) => policy.id === over.id);
+
+                  if (oldIndex !== -1 && newIndex !== -1) {
+                    const newPolicies = arrayMove(section.policies, oldIndex, newIndex);
+                    reorderPolicies.mutate({
+                      sectionId: section.id,
+                      policyIds: newPolicies.map((policy) => policy.id),
+                    });
+                  }
+                }}
+              >
+                <SortableContext
+                  items={section.policies.map((p) => p.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-4">
+                    {section.policies.map((policy, policyIndex) => (
+                      <SortablePolicy
+                        key={policy.id}
+                        policy={policy}
+                        sectionIndex={sectionIndex}
+                        policyIndex={policyIndex}
+                      >
+                        <div className="flex-1">
+                          <CardTitle className="text-base mb-1">{policy.title}</CardTitle>
+                          <CardDescription className="text-xs mb-2">
+                            Status: {policy.status}
+                          </CardDescription>
+                          {policy.currentVersion && (
+                            <div className="prose prose-sm max-w-none">
+                              {policy.currentVersion.bodyContent}
+                            </div>
+                          )}
+                        </div>
+                      </SortablePolicy>
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
+            {(!section.policies || section.policies.length === 0) && (
+              <div className="text-center py-4 text-muted-foreground">
+                No policies in this section yet.
+              </div>
+            )}
+          </CardContent>
         </Card>
       </div>
     );
@@ -425,107 +559,6 @@ export function ManualDetail() {
                   section={section}
                   sectionIndex={sectionIndex}
                 >
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <div className="text-sm text-muted-foreground">
-                        {section.policies?.length || 0} policies
-                      </div>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Policy
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Create New Policy</DialogTitle>
-                          </DialogHeader>
-                          <Form {...policyForm}>
-                            <form
-                              onSubmit={policyForm.handleSubmit(onSubmitPolicy(section.id))}
-                              className="space-y-4"
-                            >
-                              <FormField
-                                control={policyForm.control}
-                                name="title"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Title</FormLabel>
-                                    <FormControl>
-                                      <Input placeholder="Enter policy title" {...field} />
-                                    </FormControl>
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={policyForm.control}
-                                name="bodyContent"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Content</FormLabel>
-                                    <FormControl>
-                                      <Textarea
-                                        placeholder="Enter policy content"
-                                        className="min-h-[200px]"
-                                        {...field}
-                                      />
-                                    </FormControl>
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={policyForm.control}
-                                name="effectiveDate"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Effective Date</FormLabel>
-                                    <FormControl>
-                                      <Input type="date" {...field} />
-                                    </FormControl>
-                                  </FormItem>
-                                )}
-                              />
-                              <div className="flex justify-end">
-                                <Button type="submit" disabled={createPolicy.isPending}>
-                                  {createPolicy.isPending ? "Creating..." : "Create Policy"}
-                                </Button>
-                              </div>
-                            </form>
-                          </Form>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-
-                    {section.policies?.map((policy, policyIndex) => (
-                      <Card key={policy.id} className="bg-accent">
-                        <CardHeader>
-                          <div className="flex items-start gap-2">
-                            <span className="text-sm font-medium text-muted-foreground mt-1">
-                              {sectionIndex + 1}.{policyIndex + 1}
-                            </span>
-                            <div className="flex-1">
-                              <CardTitle className="text-base mb-1">{policy.title}</CardTitle>
-                              <CardDescription className="text-xs mb-2">
-                                Status: {policy.status}
-                              </CardDescription>
-                              {policy.currentVersion && (
-                                <div className="prose prose-sm max-w-none">
-                                  {policy.currentVersion.bodyContent}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </CardHeader>
-                      </Card>
-                    ))}
-
-                    {(!section.policies || section.policies.length === 0) && (
-                      <div className="text-center py-4 text-muted-foreground">
-                        No policies in this section yet.
-                      </div>
-                    )}
-                  </div>
                 </SortableSection>
               ))}
             </div>

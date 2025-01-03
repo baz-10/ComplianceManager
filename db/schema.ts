@@ -47,6 +47,7 @@ export const policies = pgTable("policies", {
   title: text("title").notNull(),
   status: Status("status").default("DRAFT").notNull(),
   currentVersionId: integer("current_version_id"),
+  orderIndex: integer("order_index").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   createdById: integer("created_by_id").references(() => users.id).notNull()

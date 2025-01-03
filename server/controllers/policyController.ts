@@ -181,5 +181,28 @@ export const PolicyController = {
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch version history' });
     }
+  },
+
+  async reorder(req: Request, res: Response) {
+    try {
+      const { sectionId } = req.params;
+      const { orderMap } = req.body;
+
+      if (!Array.isArray(orderMap)) {
+        return res.status(400).json({ error: 'Invalid order map' });
+      }
+
+      const updates = orderMap.map((policyId, index) =>
+        db.update(policies)
+          .set({ orderIndex: index })
+          .where(eq(policies.id, policyId))
+      );
+
+      await Promise.all(updates);
+
+      res.json({ message: 'Policies reordered successfully' });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to reorder policies' });
+    }
   }
 };

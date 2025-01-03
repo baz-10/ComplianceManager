@@ -38,6 +38,7 @@ export function registerRoutes(app: Express): Server {
   app.post('/api/policies/:policyId/versions', isEditorOrAdmin, PolicyController.createVersion);
   app.get('/api/policies/:policyId/versions', isAuthenticated, PolicyController.getVersionHistory);
   app.post('/api/versions/:policyVersionId/acknowledge', isAuthenticated, PolicyController.acknowledge);
+  app.post('/api/sections/:sectionId/policies/reorder', isEditorOrAdmin, PolicyController.reorder);
 
   // Annotation routes
   app.get('/api/versions/:policyVersionId/annotations', isAuthenticated, AnnotationController.list);
