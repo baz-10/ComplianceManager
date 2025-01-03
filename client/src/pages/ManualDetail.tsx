@@ -131,11 +131,11 @@ export function ManualDetail() {
         },
         version: {
           bodyContent: data.bodyContent,
-          effectiveDate: data.effectiveDate, // Using the validated YYYY-MM-DD string directly
+          effectiveDate: data.effectiveDate,
           createdById: user.id,
           authorId: user.id,
           versionNumber: 1,
-          policyId: 0 // Will be set by server
+          policyId: 0
         }
       };
 
@@ -167,7 +167,7 @@ export function ManualDetail() {
       policyForm.reset({
         title: "",
         bodyContent: "",
-        effectiveDate: new Date().toISOString().split('T')[0], // Reset to today's date
+        effectiveDate: new Date().toISOString().split('T')[0],
       });
     },
     onError: (error) => {
@@ -368,10 +368,20 @@ export function ManualDetail() {
                   {section.policies?.map((policy) => (
                     <Card key={policy.id} className="bg-accent">
                       <CardHeader>
-                        <CardTitle className="text-base">{policy.title}</CardTitle>
-                        <CardDescription className="text-xs">
-                          Status: {policy.status}
-                        </CardDescription>
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <CardTitle className="text-base">{policy.title}</CardTitle>
+                            <CardDescription className="text-xs">
+                              Status: {policy.status}
+                            </CardDescription>
+                          </div>
+                          <Link href={`/policies/${policy.id}`}>
+                            <Button variant="ghost" size="sm">
+                              <FileText className="h-4 w-4 mr-2" />
+                              View Policy
+                            </Button>
+                          </Link>
+                        </div>
                       </CardHeader>
                     </Card>
                   ))}
