@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, ArrowLeft, Plus, GripVertical } from "lucide-react";
 import { Link } from "wouter";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +32,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import React from 'react';
 import { PolicyAITools } from "@/components/PolicyAITools";
+import { Loader2 } from "lucide-react";
 
 // Update policy schema to handle date properly
 const createPolicySchema = z.object({
@@ -340,7 +341,7 @@ export function ManualDetail() {
     },
   });
 
-  function handleDragEnd(event: DragEndEvent) {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (!over || active.id === over.id || !manual?.sections) {
@@ -354,7 +355,7 @@ export function ManualDetail() {
       const newSections = arrayMove(manual.sections, oldIndex, newIndex);
       reorderSections.mutate(newSections.map((section) => section.id));
     }
-  }
+  };
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -471,6 +472,79 @@ export function ManualDetail() {
                 No policies in this section yet.
               </div>
             )}
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button className="mt-4">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Policy
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Policy</DialogTitle>
+                  <DialogDescription>
+                    Add a new policy to this section.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  policyForm.handleSubmit(onSubmitPolicy(section.id))();
+                }} className="space-y-4">
+                  <FormField
+                    control={policyForm.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Title</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter policy title" {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={policyForm.control}
+                    name="bodyContent"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Content</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Enter policy content"
+                            {...field}
+                            rows={6}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={policyForm.control}
+                    name="effectiveDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Effective Date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button type="submit" disabled={createPolicy.isPending}>
+                      {createPolicy.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        "Create Policy"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
       </div>
