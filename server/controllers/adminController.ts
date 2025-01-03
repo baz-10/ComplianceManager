@@ -40,6 +40,7 @@ export const AdminController = {
         ORDER BY COUNT(a.id) DESC
         LIMIT 5
       `);
+      const topPolicies = Array.isArray(topPoliciesResult) ? topPoliciesResult : [];
 
       // Recent activity
       const recentActivityResult = await db.execute(sql`
@@ -55,6 +56,7 @@ export const AdminController = {
         ORDER BY a.acknowledged_at DESC
         LIMIT 10
       `);
+      const recentActivity = Array.isArray(recentActivityResult) ? recentActivityResult : [];
 
       // User engagement over time (last 30 days)
       const userEngagementResult = await db.execute(sql`
@@ -67,6 +69,7 @@ export const AdminController = {
         ORDER BY date DESC
         LIMIT 30
       `);
+      const userEngagement = Array.isArray(userEngagementResult) ? userEngagementResult : [];
 
       // Section completion rates
       const sectionStatsResult = await db.execute(sql`
@@ -96,13 +99,14 @@ export const AdminController = {
         FROM section_policy_counts
         ORDER BY completion_rate DESC
       `);
+      const sectionStats = Array.isArray(sectionStatsResult) ? sectionStatsResult : [];
 
       res.json({
         totalStats,
-        topPolicies: topPoliciesResult,
-        recentActivity: recentActivityResult,
-        userEngagement: userEngagementResult,
-        sectionStats: sectionStatsResult
+        topPolicies,
+        recentActivity,
+        userEngagement,
+        sectionStats
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);

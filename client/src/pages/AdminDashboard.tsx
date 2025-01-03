@@ -3,8 +3,41 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Loader2, Users, FileText, CheckSquare, GitCommit } from "lucide-react";
 
+interface Analytics {
+  totalStats: {
+    total_policies: number;
+    total_users: number;
+    total_acknowledgements: number;
+    total_versions: number;
+  };
+  topPolicies: Array<{
+    id: number;
+    title: string;
+    acknowledgement_count: number;
+    section_title: string;
+    manual_title: string;
+  }>;
+  recentActivity: Array<{
+    username: string;
+    policy_title: string;
+    acknowledged_at: string;
+    activity_type: string;
+  }>;
+  userEngagement: Array<{
+    date: string;
+    count: number;
+  }>;
+  sectionStats: Array<{
+    id: number;
+    title: string;
+    total_policies: number;
+    total_acknowledgements: number;
+    completion_rate: number;
+  }>;
+}
+
 export function AdminDashboard() {
-  const { data: analytics, isLoading } = useQuery({
+  const { data: analytics, isLoading } = useQuery<Analytics>({
     queryKey: ['/api/admin/performance'],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
@@ -31,7 +64,7 @@ export function AdminDashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics?.totalStats?.total_policies}</div>
+            <div className="text-2xl font-bold">{analytics?.totalStats?.total_policies ?? 0}</div>
           </CardContent>
         </Card>
 
@@ -41,7 +74,7 @@ export function AdminDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics?.totalStats?.total_users}</div>
+            <div className="text-2xl font-bold">{analytics?.totalStats?.total_users ?? 0}</div>
           </CardContent>
         </Card>
 
@@ -51,7 +84,7 @@ export function AdminDashboard() {
             <CheckSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics?.totalStats?.total_acknowledgements}</div>
+            <div className="text-2xl font-bold">{analytics?.totalStats?.total_acknowledgements ?? 0}</div>
           </CardContent>
         </Card>
 
@@ -61,7 +94,7 @@ export function AdminDashboard() {
             <GitCommit className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics?.totalStats?.total_versions}</div>
+            <div className="text-2xl font-bold">{analytics?.totalStats?.total_versions ?? 0}</div>
           </CardContent>
         </Card>
       </div>
@@ -76,7 +109,7 @@ export function AdminDashboard() {
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={analytics?.userEngagement}>
+                <LineChart data={analytics?.userEngagement ?? []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
@@ -97,7 +130,7 @@ export function AdminDashboard() {
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analytics?.topPolicies}>
+                <BarChart data={analytics?.topPolicies ?? []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="title" />
                   <YAxis />
@@ -117,7 +150,7 @@ export function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {analytics?.recentActivity?.map((activity: any, index: number) => (
+              {(analytics?.recentActivity ?? []).map((activity, index) => (
                 <div key={index} className="flex items-center">
                   <div className="ml-4 space-y-1">
                     <p className="text-sm font-medium leading-none">
