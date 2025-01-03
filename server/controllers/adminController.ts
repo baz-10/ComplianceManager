@@ -12,7 +12,7 @@ declare module 'express-serve-static-core' {
 export const AdminController = {
   async getPerformanceMetrics(_req: Request, res: Response) {
     try {
-      // Fetch total counts
+      // Fetch total counts with simpler queries
       const totalStatsResult = await db.execute(sql`
         SELECT 
           (SELECT COUNT(*) FROM policies)::int as total_policies,
@@ -23,7 +23,7 @@ export const AdminController = {
       const totalStats = totalStatsResult[0];
       console.log('Total stats:', totalStats);
 
-      // Get most viewed policies (based on acknowledgments)
+      // Get most viewed policies with simpler join
       const topPoliciesResult = await db.execute(sql`
         SELECT 
           p.id,
