@@ -1,13 +1,24 @@
 import { Request, Response } from 'express';
 import { db } from '@db';
-import { policies, policyVersions, acknowledgements, insertPolicySchema, insertPolicyVersionSchema, type User } from '@db/schema';
+import { policies, policyVersions, acknowledgements, type Policy, type PolicyVersion } from '@db/schema';
 import { eq, and } from 'drizzle-orm';
+import { z } from 'zod';
 
-declare module 'express-serve-static-core' {
-  interface Request {
-    user?: User;
-  }
-}
+const createPolicySchema = z.object({
+  policy: z.object({
+    title: z.string().min(1, "Title is required"),
+    sectionId: z.number(),
+    createdById: z.number(),
+    status: z.enum(["DRAFT", "LIVE"]).default("DRAFT"),
+  }),
+  version: z.object({
+    bodyContent: z.string().min(1, "Content is required"),
+    effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+    createdById: z.number(),
+    authorId: z.number(),
+    versionNumber: z.number(),
+  }),
+});
 
 export const PolicyController = {
   async list(req: Request, res: Response) {
@@ -22,77 +33,96 @@ export const PolicyController = {
       });
       res.json(allPolicies);
     } catch (error) {
+      console.error('Failed to fetch policies:', error);
       res.status(500).json({ error: 'Failed to fetch policies' });
     }
   },
 
   async create(req: Request, res: Response) {
     try {
-      const policyResult = insertPolicySchema.safeParse(req.body.policy);
-      const versionResult = insertPolicyVersionSchema.safeParse({
-        ...req.body.version,
-        effectiveDate: new Date(req.body.version.effectiveDate)
-      });
+      console.log('Received policy creation request:', req.body);
 
-      if (!policyResult.success || !versionResult.success) {
+      const result = createPolicySchema.safeParse(req.body);
+      if (!result.success) {
+        console.error('Policy validation failed:', result.error.issues);
         return res.status(400).json({ 
           error: 'Invalid input',
-          policyErrors: policyResult.success ? null : policyResult.error.message,
-          versionErrors: versionResult.success ? null : versionResult.error.message
+          details: result.error.issues
         });
       }
 
-      if (!req.user) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
+      const { policy: policyData, version: versionData } = result.data;
 
-      // Create policy with proper type inference
+      // Create policy
       const [policy] = await db.insert(policies)
         .values({
-          title: policyResult.data.title,
-          sectionId: policyResult.data.sectionId,
-          status: policyResult.data.status,
-          createdById: req.user.id
+          title: policyData.title,
+          sectionId: policyData.sectionId,
+          status: policyData.status,
+          createdById: policyData.createdById,
+          orderIndex: 0, // Will be updated by reorder if needed
         })
         .returning();
 
-      // Create initial version with proper type inference
+      console.log('Policy created:', policy);
+
+      // Create initial version
       const [version] = await db.insert(policyVersions)
         .values({
           policyId: policy.id,
-          versionNumber: 1,
-          bodyContent: versionResult.data.bodyContent,
-          effectiveDate: versionResult.data.effectiveDate,
-          authorId: req.user.id,
-          changeSummary: versionResult.data.changeSummary,
-          attachments: versionResult.data.attachments || []
+          versionNumber: versionData.versionNumber,
+          bodyContent: versionData.bodyContent,
+          effectiveDate: new Date(versionData.effectiveDate),
+          authorId: versionData.authorId,
         })
         .returning();
 
-      // Update policy with the current version
-      await db.update(policies)
-        .set({ currentVersionId: version.id })
-        .where(eq(policies.id, policy.id));
+      console.log('Policy version created:', version);
 
-      res.status(201).json({ policy, version });
+      // Update policy with the current version
+      const [updatedPolicy] = await db
+        .update(policies)
+        .set({ currentVersionId: version.id })
+        .where(eq(policies.id, policy.id))
+        .returning();
+
+      console.log('Policy updated with current version:', updatedPolicy);
+
+      res.status(201).json({ 
+        policy: updatedPolicy,
+        version 
+      });
     } catch (error) {
-      console.error('Policy creation error:', error);
+      console.error('Failed to create policy:', error);
       res.status(500).json({ error: 'Failed to create policy' });
+    }
+  },
+
+  async getById(req: Request, res: Response) {
+    try {
+      const { policyId } = req.params;
+      const policy = await db.query.policies.findFirst({
+        where: eq(policies.id, parseInt(policyId)),
+        with: {
+          currentVersion: true,
+          createdBy: true
+        }
+      });
+
+      if (!policy) {
+        return res.status(404).json({ error: 'Policy not found' });
+      }
+
+      res.json(policy);
+    } catch (error) {
+      console.error('Failed to fetch policy:', error);
+      res.status(500).json({ error: 'Failed to fetch policy' });
     }
   },
 
   async createVersion(req: Request, res: Response) {
     try {
       const { policyId } = req.params;
-      const result = insertPolicyVersionSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({ error: result.error.message });
-      }
-
-      if (!req.user) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-
       const policy = await db.query.policies.findFirst({
         where: eq(policies.id, parseInt(policyId)),
         with: {
@@ -105,17 +135,13 @@ export const PolicyController = {
       }
 
       const newVersionNumber = policy.versions.length + 1;
-
-      // Create new version with proper type inference
       const [version] = await db.insert(policyVersions)
         .values({
           policyId: parseInt(policyId),
           versionNumber: newVersionNumber,
-          bodyContent: result.data.bodyContent,
-          effectiveDate: result.data.effectiveDate,
-          authorId: req.user.id,
-          changeSummary: result.data.changeSummary,
-          attachments: result.data.attachments || []
+          bodyContent: req.body.bodyContent,
+          effectiveDate: new Date(req.body.effectiveDate),
+          authorId: req.user!.id,
         })
         .returning();
 
@@ -125,6 +151,7 @@ export const PolicyController = {
 
       res.status(201).json(version);
     } catch (error) {
+      console.error('Failed to create policy version:', error);
       res.status(500).json({ error: 'Failed to create policy version' });
     }
   },
@@ -157,6 +184,7 @@ export const PolicyController = {
 
       res.status(201).json(acknowledgement);
     } catch (error) {
+      console.error('Failed to acknowledge policy:', error);
       res.status(500).json({ error: 'Failed to acknowledge policy' });
     }
   },
@@ -179,6 +207,7 @@ export const PolicyController = {
 
       res.json(versions);
     } catch (error) {
+      console.error('Failed to fetch version history:', error);
       res.status(500).json({ error: 'Failed to fetch version history' });
     }
   },
@@ -202,7 +231,14 @@ export const PolicyController = {
 
       res.json({ message: 'Policies reordered successfully' });
     } catch (error) {
+      console.error('Failed to reorder policies:', error);
       res.status(500).json({ error: 'Failed to reorder policies' });
     }
   }
 };
+
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: User;
+  }
+}

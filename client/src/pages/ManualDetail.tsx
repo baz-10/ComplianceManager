@@ -191,46 +191,55 @@ export function ManualDetail() {
 
   const createPolicy = useMutation({
     mutationFn: async ({ sectionId, data }: { sectionId: number; data: CreatePolicyForm }) => {
-      if (!user?.id) {
-        throw new Error("User ID is required");
-      }
-
-      const policyData = {
-        policy: {
-          title: data.title,
-          sectionId: sectionId,
-          createdById: user.id,
-          authorId: user.id,
-          status: "DRAFT",
-        },
-        version: {
-          bodyContent: data.bodyContent,
-          effectiveDate: data.effectiveDate,
-          createdById: user.id,
-          authorId: user.id,
-          versionNumber: 1,
-          policyId: 0
+      try {
+        if (!user?.id) {
+          throw new Error("User ID is required");
         }
-      };
 
-      const response = await fetch("/api/policies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(policyData),
-        credentials: "include",
-      });
+        const policyData = {
+          policy: {
+            title: data.title,
+            sectionId: sectionId,
+            createdById: user.id,
+            authorId: user.id,
+            status: "DRAFT",
+          },
+          version: {
+            bodyContent: data.bodyContent,
+            effectiveDate: data.effectiveDate,
+            createdById: user.id,
+            authorId: user.id,
+            versionNumber: 1,
+          }
+        };
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        try {
-          const errorJson = JSON.parse(errorText);
-          throw new Error(errorJson.error || errorText);
-        } catch {
-          throw new Error(errorText);
+        console.log('Sending policy creation request:', policyData);
+
+        const response = await fetch("/api/policies", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(policyData),
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Policy creation failed:', errorText);
+          try {
+            const errorJson = JSON.parse(errorText);
+            throw new Error(errorJson.error || errorText);
+          } catch {
+            throw new Error(errorText);
+          }
         }
-      }
 
-      return response.json();
+        const result = await response.json();
+        console.log('Policy created successfully:', result);
+        return result;
+      } catch (error) {
+        console.error('Policy creation error:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
@@ -245,6 +254,7 @@ export function ManualDetail() {
       });
     },
     onError: (error) => {
+      console.error('Policy mutation error:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -253,20 +263,8 @@ export function ManualDetail() {
     },
   });
 
-  const onSubmitSection = (data: CreateSectionForm) => {
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to create a section",
-        variant: "destructive",
-      });
-      return;
-    }
-    createSection.mutate(data);
-  };
-
   const onSubmitPolicy = (sectionId: number) => {
-    return (data: CreatePolicyForm) => {
+    return async (data: CreatePolicyForm) => {
       if (!user) {
         toast({
           title: "Error",
@@ -275,7 +273,35 @@ export function ManualDetail() {
         });
         return;
       }
-      createPolicy.mutate({ sectionId, data });
+
+      try {
+        const policyData = {
+          policy: {
+            title: data.title,
+            sectionId: sectionId,
+            createdById: user.id,
+            status: "DRAFT",
+          },
+          version: {
+            bodyContent: data.bodyContent,
+            effectiveDate: data.effectiveDate,
+            createdById: user.id,
+            authorId: user.id,
+            versionNumber: 1,
+          }
+        };
+
+        console.log('Attempting to create policy:', policyData);
+        await createPolicy.mutateAsync({ sectionId, data: policyData });
+
+      } catch (error) {
+        console.error('Policy submission error:', error);
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to create policy",
+          variant: "destructive",
+        });
+      }
     };
   };
 

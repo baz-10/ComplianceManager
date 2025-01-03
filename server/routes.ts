@@ -47,6 +47,7 @@ export function registerRoutes(app: Express): Server {
   // Policy routes
   app.get('/api/sections/:sectionId/policies', isAuthenticated, PolicyController.list);
   app.post('/api/policies', isEditorOrAdmin, PolicyController.create);
+  app.get('/api/policies/:policyId', isAuthenticated, PolicyController.getById);
   app.post('/api/policies/:policyId/versions', isEditorOrAdmin, PolicyController.createVersion);
   app.get('/api/policies/:policyId/versions', isAuthenticated, PolicyController.getVersionHistory);
   app.post('/api/versions/:policyVersionId/acknowledge', isAuthenticated, PolicyController.acknowledge);
