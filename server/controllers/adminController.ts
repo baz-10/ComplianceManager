@@ -21,26 +21,27 @@ export const AdminController = {
           (SELECT COUNT(*) FROM policy_versions)::int as total_versions
       `);
       const totalStats = totalStatsResult[0];
+      console.log('Total stats:', totalStats);
 
       // Get most viewed policies (based on acknowledgments)
       const topPoliciesResult = await db.execute(sql`
         SELECT 
           p.id,
           p.title,
-          COUNT(a.id)::int as acknowledgement_count,
+          COUNT(DISTINCT a.id)::int as acknowledgement_count,
           s.title as section_title,
           m.title as manual_title
         FROM policies p 
-        LEFT JOIN acknowledgements a ON a.policy_version_id IN (
-          SELECT id FROM policy_versions WHERE policy_id = p.id
-        )
+        LEFT JOIN policy_versions pv ON pv.policy_id = p.id
+        LEFT JOIN acknowledgements a ON a.policy_version_id = pv.id
         LEFT JOIN sections s ON p.section_id = s.id
         LEFT JOIN manuals m ON s.manual_id = m.id
         GROUP BY p.id, p.title, s.title, m.title
-        ORDER BY COUNT(a.id) DESC
+        ORDER BY COUNT(DISTINCT a.id) DESC
         LIMIT 5
       `);
       const topPolicies = Array.isArray(topPoliciesResult) ? topPoliciesResult : [];
+      console.log('Top policies:', topPolicies);
 
       // Recent activity
       const recentActivityResult = await db.execute(sql`
@@ -57,19 +58,28 @@ export const AdminController = {
         LIMIT 10
       `);
       const recentActivity = Array.isArray(recentActivityResult) ? recentActivityResult : [];
+      console.log('Recent activity:', recentActivity);
 
       // User engagement over time (last 30 days)
       const userEngagementResult = await db.execute(sql`
+        WITH RECURSIVE dates AS (
+          SELECT CURRENT_DATE - INTERVAL '29 days' as date
+          UNION ALL
+          SELECT date + INTERVAL '1 day'
+          FROM dates
+          WHERE date < CURRENT_DATE
+        )
         SELECT 
-          DATE(acknowledged_at)::text as date,
-          COUNT(*)::int as count
-        FROM acknowledgements
-        WHERE acknowledged_at > NOW() - INTERVAL '30 days'
-        GROUP BY DATE(acknowledged_at)
-        ORDER BY date DESC
-        LIMIT 30
+          dates.date::text,
+          COALESCE(COUNT(a.id), 0)::int as count
+        FROM dates
+        LEFT JOIN acknowledgements a 
+          ON DATE(a.acknowledged_at) = dates.date
+        GROUP BY dates.date
+        ORDER BY dates.date ASC
       `);
       const userEngagement = Array.isArray(userEngagementResult) ? userEngagementResult : [];
+      console.log('User engagement:', userEngagement);
 
       // Section completion rates
       const sectionStatsResult = await db.execute(sql`
@@ -79,7 +89,7 @@ export const AdminController = {
             s.title,
             COUNT(DISTINCT p.id)::int as total_policies,
             COUNT(DISTINCT a.id)::int as total_acknowledgements,
-            (SELECT COUNT(*)::int FROM users) as total_users
+            (SELECT COUNT(*)::int FROM users WHERE role != 'ADMIN') as total_users
           FROM sections s
           LEFT JOIN policies p ON p.section_id = s.id
           LEFT JOIN policy_versions pv ON pv.policy_id = p.id
@@ -97,9 +107,11 @@ export const AdminController = {
             ELSE 0 
           END as completion_rate
         FROM section_policy_counts
+        WHERE total_policies > 0
         ORDER BY completion_rate DESC
       `);
       const sectionStats = Array.isArray(sectionStatsResult) ? sectionStatsResult : [];
+      console.log('Section stats:', sectionStats);
 
       res.json({
         totalStats,
