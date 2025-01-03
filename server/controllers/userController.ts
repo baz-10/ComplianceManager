@@ -3,18 +3,78 @@ import { db } from '@db';
 import { users, type User } from '@db/schema';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { scrypt, randomBytes } from 'crypto';
+import { promisify } from 'util';
+
+const scryptAsync = promisify(scrypt);
 
 const updateUserSchema = z.object({
   role: z.enum(["ADMIN", "EDITOR", "READER"]),
 });
 
+const createUserSchema = z.object({
+  username: z.string().email("Username must be a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(["ADMIN", "EDITOR", "READER"]),
+});
+
+const crypto = {
+  hash: async (password: string) => {
+    const salt = randomBytes(16).toString("hex");
+    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+    return `${buf.toString("hex")}.${salt}`;
+  }
+};
+
 export const UserController = {
+  async create(req: Request, res: Response) {
+    try {
+      const result = createUserSchema.safeParse(req.body);
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error.message });
+      }
+
+      const { username, password, role } = result.data;
+
+      // Check if user already exists
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, username))
+        .limit(1);
+
+      if (existingUser) {
+        return res.status(400).json({ error: "Username already exists" });
+      }
+
+      // Hash the password
+      const hashedPassword = await crypto.hash(password);
+
+      // Create the new user
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          username,
+          password: hashedPassword,
+          role,
+        })
+        .returning();
+
+      const { password: _, ...userWithoutPassword } = newUser;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      console.error('Error creating user:', error);
+      res.status(500).json({ error: 'Failed to create user' });
+    }
+  },
+
   async list(_req: Request, res: Response) {
     try {
       const allUsers = await db.query.users.findMany({
         orderBy: users.username,
       });
-      
+
       // Remove sensitive information before sending
       const sanitizedUsers = allUsers.map(({ password, ...user }) => user);
       res.json(sanitizedUsers);
@@ -28,7 +88,7 @@ export const UserController = {
     try {
       const { userId } = req.params;
       const result = updateUserSchema.safeParse(req.body);
-      
+
       if (!result.success) {
         return res.status(400).json({ error: result.error.message });
       }

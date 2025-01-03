@@ -19,6 +19,7 @@ export function registerRoutes(app: Express): Server {
 
   // User Management routes (admin only)
   app.get('/api/users', isAdmin, UserController.list);
+  app.post('/api/users', isAdmin, UserController.create);
   app.put('/api/users/:userId/role', isAdmin, UserController.updateRole);
   app.delete('/api/users/:userId', isAdmin, UserController.removeUser);
 
