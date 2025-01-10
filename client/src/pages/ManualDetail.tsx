@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, ArrowLeft, Plus, GripVertical } from "lucide-react";
+import { FileText, ArrowLeft, Plus, GripVertical, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
@@ -13,26 +13,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import React from 'react';
 import { PolicyAITools } from "@/components/PolicyAITools";
-import { Loader2 } from "lucide-react";
 
 // Update policy schema to handle date properly
 const createPolicySchema = z.object({
@@ -190,120 +171,106 @@ export function ManualDetail() {
   });
 
   const createPolicy = useMutation({
-    mutationFn: async ({ sectionId, data }: { sectionId: number; data: CreatePolicyForm }) => {
-      try {
-        if (!user?.id) {
-          throw new Error("User ID is required");
-        }
-
-        const policyData = {
-          policy: {
-            title: data.title,
-            sectionId: sectionId,
-            createdById: user.id,
-            authorId: user.id,
-            status: "DRAFT",
-          },
-          version: {
-            bodyContent: data.bodyContent,
-            effectiveDate: data.effectiveDate,
-            createdById: user.id,
-            authorId: user.id,
-            versionNumber: 1,
-          }
-        };
-
-        console.log('Sending policy creation request:', policyData);
-
-        const response = await fetch("/api/policies", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(policyData),
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Policy creation failed:', errorText);
-          try {
-            const errorJson = JSON.parse(errorText);
-            throw new Error(errorJson.error || errorText);
-          } catch {
-            throw new Error(errorText);
-          }
-        }
-
-        const result = await response.json();
-        console.log('Policy created successfully:', result);
-        return result;
-      } catch (error) {
-        console.error('Policy creation error:', error);
-        throw error;
+    mutationFn: async (data: { sectionId: number; formData: CreatePolicyForm }) => {
+      if (!user?.id) {
+        throw new Error("Authentication required");
       }
+
+      const policyData = {
+        policy: {
+          title: data.formData.title,
+          sectionId: data.sectionId,
+          createdById: user.id,
+          status: "DRAFT",
+        },
+        version: {
+          bodyContent: data.formData.bodyContent,
+          effectiveDate: data.formData.effectiveDate,
+          createdById: user.id,
+          authorId: user.id,
+          versionNumber: 1,
+        }
+      };
+
+      const response = await fetch("/api/policies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(policyData),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText);
+      }
+
+      return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
       toast({
-        title: "Success",
-        description: "Policy created successfully",
+        title: "Policy Created",
+        description: `"${data.policy.title}" has been created and saved as a draft`,
+        duration: 5000,
       });
       policyForm.reset({
         title: "",
         bodyContent: "",
-        effectiveDate: new Date().toISOString().split('T')[0],
+        effectiveDate: today,
       });
     },
-    onError: (error) => {
-      console.error('Policy mutation error:', error);
+    onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Failed to Create Policy",
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
+        duration: 7000,
       });
     },
   });
 
   const onSubmitPolicy = (sectionId: number) => {
-    return async (data: CreatePolicyForm) => {
-      if (!user) {
-        toast({
-          title: "Error",
-          description: "You must be logged in to create a policy",
-          variant: "destructive",
-        });
-        return;
-      }
-
+    return policyForm.handleSubmit(async (formData) => {
       try {
-        const policyData = {
-          policy: {
-            title: data.title,
-            sectionId: sectionId,
-            createdById: user.id,
-            status: "DRAFT",
-          },
-          version: {
-            bodyContent: data.bodyContent,
-            effectiveDate: data.effectiveDate,
-            createdById: user.id,
-            authorId: user.id,
-            versionNumber: 1,
-          }
-        };
-
-        console.log('Attempting to create policy:', policyData);
-        await createPolicy.mutateAsync({ sectionId, data: policyData });
-
+        await createPolicy.mutateAsync({ sectionId, formData });
       } catch (error) {
         console.error('Policy submission error:', error);
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to create policy",
-          variant: "destructive",
-        });
       }
-    };
+    });
   };
+
+  const reorderPolicies = useMutation({
+    mutationFn: async ({ sectionId, policyIds }: { sectionId: number; policyIds: number[] }) => {
+      const response = await fetch(`/api/sections/${sectionId}/policies/reorder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderMap: policyIds }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
+      toast({
+        title: "Policies Reordered",
+        description: "The policy order has been updated successfully.",
+        duration: 3000,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Reorder Failed",
+        description: `Failed to reorder policies: ${error instanceof Error ? error.message : 'Please try again'}`,
+        variant: "destructive",
+        duration: 5000,
+      });
+    },
+  });
 
   const reorderSections = useMutation({
     mutationFn: async (sectionIds: number[]) => {
@@ -336,36 +303,6 @@ export function ManualDetail() {
     },
   });
 
-  const reorderPolicies = useMutation({
-    mutationFn: async ({ sectionId, policyIds }: { sectionId: number; policyIds: number[] }) => {
-      const response = await fetch(`/api/sections/${sectionId}/policies/reorder`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderMap: policyIds }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
-      toast({
-        title: "Success",
-        description: "Policies reordered successfully",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -513,10 +450,7 @@ export function ManualDetail() {
                   </DialogDescription>
                 </DialogHeader>
                 <Form {...policyForm}>
-                  <form onSubmit={(e) => {
-                    e.preventDefault();
-                    policyForm.handleSubmit(onSubmitPolicy(section.id))();
-                  }} className="space-y-4">
+                  <form onSubmit={onSubmitPolicy(section.id)} className="space-y-4">
                     <FormField
                       control={policyForm.control}
                       name="title"
@@ -610,7 +544,7 @@ export function ManualDetail() {
                 <DialogTitle>Create New Section</DialogTitle>
               </DialogHeader>
               <Form {...sectionForm}>
-                <form onSubmit={sectionForm.handleSubmit(onSubmitSection)} className="space-y-4">
+                <form onSubmit={sectionForm.handleSubmit(data => createSection.mutate(data))} className="space-y-4">
                   <FormField
                     control={sectionForm.control}
                     name="title"
