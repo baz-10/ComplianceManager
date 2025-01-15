@@ -83,6 +83,86 @@ interface Manual {
 }
 
 // Component definitions
+function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit: (data: CreatePolicyForm) => void }) {
+  const today = new Date().toISOString().split('T')[0];
+  const form = useForm<CreatePolicyForm>({
+    resolver: zodResolver(createPolicySchema),
+    defaultValues: {
+      title: "",
+      bodyContent: "",
+      effectiveDate: today,
+    },
+  });
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button className="mt-4">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Policy
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create New Policy</DialogTitle>
+          <DialogDescription>
+            Add a new policy to this section.
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter policy title" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="bodyContent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Content</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Enter policy content"
+                      {...field}
+                      rows={6}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="effectiveDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Effective Date</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <DialogFooter>
+              <Button type="submit">
+                Create Policy
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function SortablePolicy({ policy, sectionIndex, policyIndex, children }: {
   policy: Policy;
   sectionIndex: number;
@@ -127,10 +207,20 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children }: {
   );
 }
 
-function SortableSection({ section, sectionIndex, onReorderPolicies }: {
+function SortableSection({
+  section,
+  sectionIndex,
+  onReorderPolicies,
+  onUpdatePolicy,
+  onDeletePolicy,
+  onCreatePolicy,
+}: {
   section: Section;
   sectionIndex: number;
   onReorderPolicies: (sectionId: number, policyIds: number[]) => void;
+  onUpdatePolicy: (policyId: number, data: { title: string; status?: "DRAFT" | "LIVE" }) => void;
+  onDeletePolicy: (policyId: number) => void;
+  onCreatePolicy: (sectionId: number, data: CreatePolicyForm) => void;
 }) {
   const {
     attributes,
@@ -235,10 +325,7 @@ function SortableSection({ section, sectionIndex, onReorderPolicies }: {
                                     e.preventDefault();
                                     const formData = new FormData(e.currentTarget);
                                     const title = formData.get('title') as string;
-                                    updatePolicy.mutate({
-                                      policyId: policy.id,
-                                      data: { title }
-                                    });
+                                    onUpdatePolicy(policy.id, { title });
                                   }}
                                   className="space-y-4"
                                 >
@@ -251,15 +338,8 @@ function SortableSection({ section, sectionIndex, onReorderPolicies }: {
                                     />
                                   </div>
                                   <DialogFooter>
-                                    <Button type="submit" disabled={updatePolicy.isPending}>
-                                      {updatePolicy.isPending ? (
-                                        <>
-                                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                          Updating...
-                                        </>
-                                      ) : (
-                                        "Update Policy"
-                                      )}
+                                    <Button type="submit">
+                                      Update Policy
                                     </Button>
                                   </DialogFooter>
                                 </form>
@@ -282,17 +362,10 @@ function SortableSection({ section, sectionIndex, onReorderPolicies }: {
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() => deletePolicy.mutate(policy.id)}
+                                    onClick={() => onDeletePolicy(policy.id)}
                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                   >
-                                    {deletePolicy.isPending ? (
-                                      <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Deleting...
-                                      </>
-                                    ) : (
-                                      "Delete Policy"
-                                    )}
+                                    Delete Policy
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
@@ -316,78 +389,10 @@ function SortableSection({ section, sectionIndex, onReorderPolicies }: {
               No policies in this section yet.
             </div>
           )}
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="mt-4">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Policy
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New Policy</DialogTitle>
-                <DialogDescription>
-                  Add a new policy to this section.
-                </DialogDescription>
-              </DialogHeader>
-              <Form {...policyForm}>
-                <form onSubmit={onSubmitPolicy(section.id)} className="space-y-4">
-                  <FormField
-                    control={policyForm.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Title</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter policy title" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={policyForm.control}
-                    name="bodyContent"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Content</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Enter policy content"
-                            {...field}
-                            rows={6}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={policyForm.control}
-                    name="effectiveDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Effective Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <DialogFooter>
-                    <Button type="submit" disabled={createPolicy.isPending}>
-                      {createPolicy.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating...
-                        </>
-                      ) : (
-                        "Create Policy"
-                      )}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+          <AddPolicyDialog
+            sectionId={section.id}
+            onSubmit={(data) => onCreatePolicy(section.id, data)}
+          />
         </CardContent>
       </Card>
     </div>
@@ -407,23 +412,12 @@ export function ManualDetail() {
     })
   );
 
-  // Initialize forms
+  // Initialize form
   const sectionForm = useForm<CreateSectionForm>({
     resolver: zodResolver(createSectionSchema),
     defaultValues: {
       title: "",
       description: "",
-    },
-  });
-
-  // Initialize form with today's date in YYYY-MM-DD format
-  const today = new Date().toISOString().split('T')[0];
-  const policyForm = useForm<CreatePolicyForm>({
-    resolver: zodResolver(createPolicySchema),
-    defaultValues: {
-      title: "",
-      bodyContent: "",
-      effectiveDate: today,
     },
   });
 
@@ -470,21 +464,21 @@ export function ManualDetail() {
   });
 
   const createPolicy = useMutation({
-    mutationFn: async (data: { sectionId: number; formData: CreatePolicyForm }) => {
+    mutationFn: async ({ sectionId, formData }: { sectionId: number; formData: CreatePolicyForm }) => {
       if (!user?.id) {
         throw new Error("Authentication required");
       }
 
       const policyData = {
         policy: {
-          title: data.formData.title,
-          sectionId: data.sectionId,
+          title: formData.title,
+          sectionId: sectionId,
           createdById: user.id,
           status: "DRAFT",
         },
         version: {
-          bodyContent: data.formData.bodyContent,
-          effectiveDate: data.formData.effectiveDate,
+          bodyContent: formData.bodyContent,
+          effectiveDate: formData.effectiveDate,
           createdById: user.id,
           authorId: user.id,
           versionNumber: 1,
@@ -510,11 +504,6 @@ export function ManualDetail() {
         title: "Policy Created",
         description: `"${data.policy.title}" has been created and saved as a draft`,
         duration: 5000,
-      });
-      policyForm.reset({
-        title: "",
-        bodyContent: "",
-        effectiveDate: today,
       });
     },
     onError: (error: Error) => {
@@ -655,17 +644,6 @@ export function ManualDetail() {
     },
   });
 
-  // Event Handlers
-  const onSubmitPolicy = (sectionId: number) => {
-    return policyForm.handleSubmit(async (formData) => {
-      try {
-        await createPolicy.mutateAsync({ sectionId, formData });
-      } catch (error) {
-        console.error('Policy submission error:', error);
-      }
-    });
-  };
-
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -790,6 +768,15 @@ export function ManualDetail() {
                   sectionIndex={sectionIndex}
                   onReorderPolicies={(sectionId, policyIds) => {
                     reorderPolicies.mutate({ sectionId, policyIds });
+                  }}
+                  onUpdatePolicy={(policyId, data) => {
+                    updatePolicy.mutate({ policyId, data });
+                  }}
+                  onDeletePolicy={(policyId) => {
+                    deletePolicy.mutate(policyId);
+                  }}
+                  onCreatePolicy={(sectionId, formData) => {
+                    createPolicy.mutate({ sectionId, formData });
                   }}
                 />
               ))}
