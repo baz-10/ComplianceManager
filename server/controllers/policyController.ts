@@ -20,6 +20,11 @@ const createPolicySchema = z.object({
   }),
 });
 
+const updatePolicySchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  status: z.enum(["DRAFT", "LIVE"]).optional(),
+});
+
 export const PolicyController = {
   async list(req: Request, res: Response) {
     try {
@@ -153,6 +158,66 @@ export const PolicyController = {
     } catch (error) {
       console.error('Failed to create policy version:', error);
       res.status(500).json({ error: 'Failed to create policy version' });
+    }
+  },
+
+  async update(req: Request, res: Response) {
+    try {
+      const { policyId } = req.params;
+      const result = updatePolicySchema.safeParse(req.body);
+
+      if (!result.success) {
+        return res.status(400).json({ 
+          error: 'Invalid input',
+          details: result.error.issues
+        });
+      }
+
+      const [updatedPolicy] = await db
+        .update(policies)
+        .set({ 
+          title: result.data.title,
+          status: result.data.status,
+          updatedAt: new Date()
+        })
+        .where(eq(policies.id, parseInt(policyId)))
+        .returning();
+
+      if (!updatedPolicy) {
+        return res.status(404).json({ error: 'Policy not found' });
+      }
+
+      res.json(updatedPolicy);
+    } catch (error) {
+      console.error('Failed to update policy:', error);
+      res.status(500).json({ error: 'Failed to update policy' });
+    }
+  },
+
+  async delete(req: Request, res: Response) {
+    try {
+      const { policyId } = req.params;
+
+      // First check if the policy exists
+      const [policy] = await db
+        .select()
+        .from(policies)
+        .where(eq(policies.id, parseInt(policyId)))
+        .limit(1);
+
+      if (!policy) {
+        return res.status(404).json({ error: 'Policy not found' });
+      }
+
+      // Delete the policy
+      await db
+        .delete(policies)
+        .where(eq(policies.id, parseInt(policyId)));
+
+      res.json({ message: 'Policy deleted successfully' });
+    } catch (error) {
+      console.error('Failed to delete policy:', error);
+      res.status(500).json({ error: 'Failed to delete policy' });
     }
   },
 
