@@ -1,9 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "wouter";
+import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, ArrowLeft, Plus, GripVertical, Loader2, Edit2, Trash2 } from "lucide-react";
-import { Link } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -806,9 +805,3 @@ function ManualDetail() {
 }
 
 export default ManualDetail;
-
-declare module 'express-serve-static-core' {
-  interface Request {
-    user?: SelectUser;
-  }
-}
