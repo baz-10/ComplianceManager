@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, Link } from "wouter";
+import { useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, ArrowLeft, Plus, GripVertical, Loader2, Edit2, Trash2 } from "lucide-react";
+import { Link } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,6 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
-import type { SelectUser } from "@db/schema";
 import {
   DndContext,
   closestCenter,
@@ -20,7 +20,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  type DragEndEvent,
+  DragEndEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -31,7 +31,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { PolicyAITools } from "@/components/PolicyAITools";
-import { RichTextEditor } from "@/components/RichTextEditor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +42,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { RichTextEditor } from "@/components/RichTextEditor";
 
 // Schema definitions
 const createPolicySchema = z.object({
@@ -103,7 +103,7 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
           Add Policy
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Create New Policy</DialogTitle>
           <DialogDescription>
@@ -111,7 +111,7 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex-1 overflow-y-auto pr-2">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="title"
@@ -134,7 +134,7 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
                     <RichTextEditor
                       content={field.value}
                       onChange={field.onChange}
-                      className="min-h-[300px] max-h-[400px]"
+                      className="min-h-[400px]"
                     />
                   </FormControl>
                 </FormItem>
@@ -152,13 +152,13 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
                 </FormItem>
               )}
             />
+            <DialogFooter>
+              <Button type="submit">
+                Create Policy
+              </Button>
+            </DialogFooter>
           </form>
         </Form>
-        <DialogFooter className="mt-4">
-          <Button type="submit" onClick={form.handleSubmit(onSubmit)}>
-            Create Policy
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -205,8 +205,8 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children }: {
         </CardHeader>
         {policy.currentVersion && (
           <CardContent>
-            <div
-              className="prose prose-sm max-w-none prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-blockquote:border-l-2 prose-blockquote:border-muted prose-blockquote:pl-4 prose-blockquote:italic prose-code:bg-muted prose-code:p-1 prose-code:rounded"
+            <div 
+              className="prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
             />
           </CardContent>
@@ -382,8 +382,8 @@ function SortableSection({
                           </div>
                         </div>
                         {policy.currentVersion && (
-                          <div
-                            className="prose prose-sm max-w-none prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-blockquote:border-l-2 prose-blockquote:border-muted prose-blockquote:pl-4 prose-blockquote:italic prose-code:bg-muted prose-code:p-1 prose-code:rounded"
+                          <div 
+                            className="prose prose-sm max-w-none"
                             dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
                           />
                         )}
@@ -409,7 +409,7 @@ function SortableSection({
   );
 }
 
-function ManualDetail() {
+export function ManualDetail() {
   const { id } = useParams();
   const { user } = useUser();
   const { toast } = useToast();
@@ -803,5 +803,3 @@ function ManualDetail() {
     </div>
   );
 }
-
-export default ManualDetail;
