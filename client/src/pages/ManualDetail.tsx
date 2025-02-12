@@ -42,6 +42,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { RichTextEditor } from "@/components/RichTextEditor";
 
 // Schema definitions
 const createPolicySchema = z.object({
@@ -102,7 +103,7 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
           Add Policy
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Create New Policy</DialogTitle>
           <DialogDescription>
@@ -130,10 +131,10 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
                 <FormItem>
                   <FormLabel>Content</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Enter policy content"
-                      {...field}
-                      rows={6}
+                    <RichTextEditor
+                      content={field.value}
+                      onChange={field.onChange}
+                      className="min-h-[400px]"
                     />
                   </FormControl>
                 </FormItem>
@@ -202,6 +203,14 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children }: {
             {children}
           </div>
         </CardHeader>
+        {policy.currentVersion && (
+          <CardContent>
+            <div 
+              className="prose prose-sm max-w-none"
+              dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
+            />
+          </CardContent>
+        )}
       </Card>
     </div>
   );
@@ -373,9 +382,10 @@ function SortableSection({
                           </div>
                         </div>
                         {policy.currentVersion && (
-                          <div className="prose prose-sm max-w-none">
-                            {policy.currentVersion.bodyContent}
-                          </div>
+                          <div 
+                            className="prose prose-sm max-w-none"
+                            dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
+                          />
                         )}
                       </div>
                     </SortablePolicy>
