@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '@db';
-import { policies, policyVersions, acknowledgements, type Policy, type PolicyVersion } from '@db/schema';
+import { policies, policyVersions, acknowledgements, annotations, type Policy, type PolicyVersion } from '@db/schema';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 
@@ -209,10 +209,38 @@ export const PolicyController = {
         return res.status(404).json({ error: 'Policy not found' });
       }
 
-      // Delete the policy
-      await db
-        .delete(policies)
-        .where(eq(policies.id, parseInt(policyId)));
+      // Begin transaction to ensure all related records are deleted
+      await db.transaction(async (tx) => {
+        // Delete all acknowledgements for all versions of this policy
+        await tx.delete(acknowledgements)
+          .where(
+            eq(acknowledgements.policyVersionId, 
+              db.select({ id: policyVersions.id })
+                .from(policyVersions)
+                .where(eq(policyVersions.policyId, parseInt(policyId)))
+                .limit(1)
+            )
+          );
+
+        // Delete all annotations for all versions of this policy
+        await tx.delete(annotations)
+          .where(
+            eq(annotations.policyVersionId,
+              db.select({ id: policyVersions.id })
+                .from(policyVersions)
+                .where(eq(policyVersions.policyId, parseInt(policyId)))
+                .limit(1)
+            )
+          );
+
+        // Delete all versions of this policy
+        await tx.delete(policyVersions)
+          .where(eq(policyVersions.policyId, parseInt(policyId)));
+
+        // Finally delete the policy itself
+        await tx.delete(policies)
+          .where(eq(policies.id, parseInt(policyId)));
+      });
 
       res.json({ message: 'Policy deleted successfully' });
     } catch (error) {
