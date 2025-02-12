@@ -13,6 +13,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
+import type { SelectUser } from "@db/schema";
 import {
   DndContext,
   closestCenter,
@@ -20,7 +21,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
+  type DragEndEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -31,6 +32,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { PolicyAITools } from "@/components/PolicyAITools";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +44,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { RichTextEditor } from "@/components/RichTextEditor";
 
 // Schema definitions
 const createPolicySchema = z.object({
@@ -206,7 +207,7 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children }: {
         {policy.currentVersion && (
           <CardContent>
             <div
-              className="prose prose-sm max-w-none"
+              className="prose prose-sm max-w-none prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-blockquote:border-l-2 prose-blockquote:border-muted prose-blockquote:pl-4 prose-blockquote:italic prose-code:bg-muted prose-code:p-1 prose-code:rounded"
               dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
             />
           </CardContent>
@@ -383,7 +384,7 @@ function SortableSection({
                         </div>
                         {policy.currentVersion && (
                           <div
-                            className="prose prose-sm max-w-none"
+                            className="prose prose-sm max-w-none prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-blockquote:border-l-2 prose-blockquote:border-muted prose-blockquote:pl-4 prose-blockquote:italic prose-code:bg-muted prose-code:p-1 prose-code:rounded"
                             dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
                           />
                         )}
@@ -805,3 +806,9 @@ function ManualDetail() {
 }
 
 export default ManualDetail;
+
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: SelectUser;
+  }
+}
