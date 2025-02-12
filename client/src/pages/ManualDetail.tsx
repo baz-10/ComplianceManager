@@ -103,7 +103,7 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
           Add Policy
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Create New Policy</DialogTitle>
           <DialogDescription>
@@ -111,7 +111,7 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex-1 overflow-y-auto pr-2">
             <FormField
               control={form.control}
               name="title"
@@ -134,7 +134,7 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
                     <RichTextEditor
                       content={field.value}
                       onChange={field.onChange}
-                      className="min-h-[400px]"
+                      className="min-h-[300px] max-h-[400px]"
                     />
                   </FormControl>
                 </FormItem>
@@ -152,13 +152,13 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
                 </FormItem>
               )}
             />
-            <DialogFooter>
-              <Button type="submit">
-                Create Policy
-              </Button>
-            </DialogFooter>
           </form>
         </Form>
+        <DialogFooter className="mt-4">
+          <Button type="submit" onClick={form.handleSubmit(onSubmit)}>
+            Create Policy
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -205,7 +205,7 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children }: {
         </CardHeader>
         {policy.currentVersion && (
           <CardContent>
-            <div 
+            <div
               className="prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
             />
@@ -382,7 +382,7 @@ function SortableSection({
                           </div>
                         </div>
                         {policy.currentVersion && (
-                          <div 
+                          <div
                             className="prose prose-sm max-w-none"
                             dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
                           />
@@ -409,7 +409,7 @@ function SortableSection({
   );
 }
 
-export function ManualDetail() {
+function ManualDetail() {
   const { id } = useParams();
   const { user } = useUser();
   const { toast } = useToast();
@@ -803,3 +803,5 @@ export function ManualDetail() {
     </div>
   );
 }
+
+export default ManualDetail;

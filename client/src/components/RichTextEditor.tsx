@@ -22,7 +22,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface MenuBarProps {
-  editor: Editor;
+  editor: Editor | null;
 }
 
 function MenuBar({ editor }: MenuBarProps) {
@@ -30,7 +30,7 @@ function MenuBar({ editor }: MenuBarProps) {
   const [linkUrl, setLinkUrl] = useState('');
 
   const addLink = () => {
-    if (linkUrl) {
+    if (linkUrl && editor) {
       editor.chain().focus().setLink({ href: linkUrl }).run();
       setLinkUrl('');
       setIsLinkInputVisible(false);
@@ -50,7 +50,7 @@ function MenuBar({ editor }: MenuBarProps) {
       >
         <Bold className="h-4 w-4" />
       </Toggle>
-      
+
       <Toggle
         size="sm"
         pressed={editor.isActive('italic')}
@@ -58,7 +58,7 @@ function MenuBar({ editor }: MenuBarProps) {
       >
         <Italic className="h-4 w-4" />
       </Toggle>
-      
+
       <Toggle
         size="sm"
         pressed={editor.isActive('underline')}
@@ -84,7 +84,7 @@ function MenuBar({ editor }: MenuBarProps) {
       >
         <List className="h-4 w-4" />
       </Toggle>
-      
+
       <Toggle
         size="sm"
         pressed={editor.isActive('orderedList')}
@@ -102,7 +102,7 @@ function MenuBar({ editor }: MenuBarProps) {
       >
         <AlignLeft className="h-4 w-4" />
       </Toggle>
-      
+
       <Toggle
         size="sm"
         pressed={editor.isActive({ textAlign: 'center' })}
@@ -110,7 +110,7 @@ function MenuBar({ editor }: MenuBarProps) {
       >
         <AlignCenter className="h-4 w-4" />
       </Toggle>
-      
+
       <Toggle
         size="sm"
         pressed={editor.isActive({ textAlign: 'right' })}
