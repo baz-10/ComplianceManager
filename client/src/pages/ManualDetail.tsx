@@ -227,7 +227,7 @@ function SortableSection({
   section: Section;
   sectionIndex: number;
   onReorderPolicies: (sectionId: number, policyIds: number[]) => void;
-  onUpdatePolicy: (policyId: number, data: { title: string; status?: "DRAFT" | "LIVE" }) => void;
+  onUpdatePolicy: (policyId: number, data: { title: string; bodyContent?: string; status?: "DRAFT" | "LIVE" }) => void;
   onDeletePolicy: (policyId: number) => void;
   onCreatePolicy: (sectionId: number, data: CreatePolicyForm) => void;
 }) {
@@ -322,36 +322,57 @@ function SortableSection({
                                   <Edit2 className="h-4 w-4" />
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent>
+                              <DialogContent className="max-w-3xl">
                                 <DialogHeader>
                                   <DialogTitle>Edit Policy</DialogTitle>
                                   <DialogDescription>
                                     Update the policy details below.
                                   </DialogDescription>
                                 </DialogHeader>
-                                <form
-                                  onSubmit={(e) => {
-                                    e.preventDefault();
-                                    const formData = new FormData(e.currentTarget);
-                                    const title = formData.get('title') as string;
-                                    onUpdatePolicy(policy.id, { title });
-                                  }}
-                                  className="space-y-4"
-                                >
-                                  <div className="space-y-2">
-                                    <label className="text-sm font-medium">Title</label>
-                                    <Input
-                                      name="title"
-                                      defaultValue={policy.title}
-                                      placeholder="Enter policy title"
-                                    />
-                                  </div>
-                                  <DialogFooter>
-                                    <Button type="submit">
-                                      Update Policy
-                                    </Button>
-                                  </DialogFooter>
-                                </form>
+                                {policy.currentVersion && (
+                                  <form
+                                    onSubmit={(e) => {
+                                      e.preventDefault();
+                                      const formData = new FormData(e.currentTarget);
+                                      const title = formData.get('title') as string;
+                                      const bodyContent = formData.get('bodyContent') as string;
+                                      onUpdatePolicy(policy.id, { 
+                                        title,
+                                        bodyContent: bodyContent
+                                      });
+                                    }}
+                                    className="space-y-4"
+                                  >
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium">Title</label>
+                                      <Input
+                                        name="title"
+                                        defaultValue={policy.title}
+                                        placeholder="Enter policy title"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium">Content</label>
+                                      <input 
+                                        type="hidden" 
+                                        name="bodyContent" 
+                                        id="bodyContent"
+                                      />
+                                      <RichTextEditor
+                                        content={policy.currentVersion.bodyContent}
+                                        onChange={(html) => {
+                                          document.getElementById('bodyContent').value = html;
+                                        }}
+                                        className="min-h-[400px]"
+                                      />
+                                    </div>
+                                    <DialogFooter>
+                                      <Button type="submit">
+                                        Update Policy
+                                      </Button>
+                                    </DialogFooter>
+                                  </form>
+                                )}
                               </DialogContent>
                             </Dialog>
 
@@ -527,19 +548,69 @@ export function ManualDetail() {
   });
 
   const updatePolicy = useMutation({
-    mutationFn: async ({ policyId, data }: { policyId: number; data: { title: string; status?: "DRAFT" | "LIVE" } }) => {
-      const response = await fetch(`/api/policies/${policyId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-        credentials: 'include',
-      });
+    mutationFn: async ({ policyId, data }: { 
+      policyId: number; 
+      data: { 
+        title: string; 
+        bodyContent?: string;
+        status?: "DRAFT" | "LIVE" 
+      } 
+    }) => {
+      // If we have bodyContent, we need to create a new version
+      if (data.bodyContent) {
+        // First update the policy title if needed
+        await fetch(`/api/policies/${policyId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            title: data.title,
+            status: data.status 
+          }),
+          credentials: 'include',
+        });
 
-      if (!response.ok) {
-        throw new Error(await response.text());
+        // Then create a new version with the updated content
+        const versionResponse = await fetch(`/api/policies/${policyId}/versions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bodyContent: data.bodyContent,
+            effectiveDate: new Date().toISOString().split('T')[0], // Today
+            changeSummary: "Updated policy content"
+          }),
+          credentials: 'include',
+        });
+
+        if (!versionResponse.ok) {
+          throw new Error(await versionResponse.text());
+        }
+
+        // Get the updated policy with the new version
+        const policyResponse = await fetch(`/api/policies/${policyId}`, {
+          credentials: 'include',
+        });
+
+        if (!policyResponse.ok) {
+          throw new Error(await policyResponse.text());
+        }
+
+        return policyResponse.json();
       }
+      else {
+        // Just update the policy title/status
+        const response = await fetch(`/api/policies/${policyId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+          credentials: 'include',
+        });
 
-      return response.json();
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+
+        return response.json();
+      }
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
