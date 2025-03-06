@@ -104,7 +104,7 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
           Add Policy
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Create New Policy</DialogTitle>
           <DialogDescription>
@@ -112,7 +112,7 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex-1 overflow-y-auto pr-1">
             <FormField
               control={form.control}
               name="title"
@@ -135,7 +135,7 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
                     <RichTextEditor
                       content={field.value}
                       onChange={field.onChange}
-                      className="min-h-[400px]"
+                      className="min-h-[300px] max-h-[350px] overflow-y-auto"
                     />
                   </FormControl>
                 </FormItem>
@@ -153,7 +153,8 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
                 </FormItem>
               )}
             />
-            <DialogFooter>
+            <div className="h-4"></div> {/* Spacer to ensure footer visibility */}
+            <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t mt-4">
               <Button type="submit">
                 Create Policy
               </Button>
@@ -206,7 +207,7 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children }: {
         </CardHeader>
         {policy.currentVersion && (
           <CardContent>
-            <div 
+            <div
               className="prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
             />
@@ -323,7 +324,7 @@ function SortableSection({
                                   <Edit2 className="h-4 w-4" />
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-3xl">
+                              <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
                                 <DialogHeader>
                                   <DialogTitle>Edit Policy</DialogTitle>
                                   <DialogDescription>
@@ -337,12 +338,12 @@ function SortableSection({
                                       const formData = new FormData(e.currentTarget);
                                       const title = formData.get('title') as string;
                                       const bodyContent = formData.get('bodyContent') as string;
-                                      onUpdatePolicy(policy.id, { 
+                                      onUpdatePolicy(policy.id, {
                                         title,
                                         bodyContent: bodyContent
                                       });
                                     }}
-                                    className="space-y-4"
+                                    className="space-y-4 flex-1 overflow-y-auto pr-1"
                                   >
                                     <div className="space-y-2">
                                       <label className="text-sm font-medium">Title</label>
@@ -354,9 +355,9 @@ function SortableSection({
                                     </div>
                                     <div className="space-y-2">
                                       <label className="text-sm font-medium">Content</label>
-                                      <input 
-                                        type="hidden" 
-                                        name="bodyContent" 
+                                      <input
+                                        type="hidden"
+                                        name="bodyContent"
                                         id="bodyContent"
                                       />
                                       <RichTextEditor
@@ -367,10 +368,11 @@ function SortableSection({
                                             (element as HTMLInputElement).value = html;
                                           }
                                         }}
-                                        className="min-h-[400px]"
+                                        className="min-h-[250px] max-h-[350px] overflow-y-auto"
                                       />
                                     </div>
-                                    <DialogFooter>
+                                    <div className="h-4"></div> {/* Spacer to ensure footer visibility */}
+                                    <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t mt-4">
                                       <Button type="submit">
                                         Update Policy
                                       </Button>
@@ -546,13 +548,13 @@ export function ManualDetail() {
   });
 
   const updatePolicy = useMutation({
-    mutationFn: async ({ policyId, data }: { 
-      policyId: number; 
-      data: { 
-        title: string; 
+    mutationFn: async ({ policyId, data }: {
+      policyId: number;
+      data: {
+        title: string;
         bodyContent?: string;
-        status?: "DRAFT" | "LIVE" 
-      } 
+        status?: "DRAFT" | "LIVE"
+      }
     }) => {
       // If we have bodyContent, we need to create a new version
       if (data.bodyContent) {
@@ -560,9 +562,9 @@ export function ManualDetail() {
         await fetch(`/api/policies/${policyId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             title: data.title,
-            status: data.status 
+            status: data.status
           }),
           credentials: 'include',
         });
