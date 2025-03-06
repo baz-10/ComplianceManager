@@ -43,6 +43,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { RichTextEditor } from "@/components/RichTextEditor";
+import { ExportDialog } from "@/components/ExportDialog";
 
 // Schema definitions
 const createPolicySchema = z.object({
@@ -765,13 +766,18 @@ export function ManualDetail() {
   // Render
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/manuals">
-          <Button variant="outline" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <h1 className="text-3xl font-bold tracking-tight">{manual.title}</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/manuals">
+            <Button variant="outline" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <h1 className="text-3xl font-bold tracking-tight">{manual.title}</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <ExportDialog manualTitle={manual.title} sections={manual.sections} />
+        </div>
       </div>
 
       <p className="text-muted-foreground">{manual.description}</p>
