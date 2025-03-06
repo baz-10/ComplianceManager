@@ -64,6 +64,7 @@ interface Policy {
   id: number;
   title: string;
   status: "DRAFT" | "LIVE";
+  currentVersionId: number | null;
   currentVersion?: {
     bodyContent: string;
   };
@@ -361,7 +362,10 @@ function SortableSection({
                                       <RichTextEditor
                                         content={policy.currentVersion.bodyContent}
                                         onChange={(html) => {
-                                          document.getElementById('bodyContent').value = html;
+                                          const element = document.getElementById('bodyContent');
+                                          if (element) {
+                                            (element as HTMLInputElement).value = html;
+                                          }
                                         }}
                                         className="min-h-[400px]"
                                       />
@@ -402,12 +406,6 @@ function SortableSection({
                             </AlertDialog>
                           </div>
                         </div>
-                        {policy.currentVersion && (
-                          <div 
-                            className="prose prose-sm max-w-none"
-                            dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
-                          />
-                        )}
                       </div>
                     </SortablePolicy>
                   ))}
