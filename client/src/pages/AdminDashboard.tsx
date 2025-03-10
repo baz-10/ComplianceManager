@@ -61,6 +61,22 @@ export function AdminDashboard() {
     );
   }
 
+  // Ensure we have data before rendering
+  if (!analytics) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p className="text-muted-foreground">No data available</p>
+      </div>
+    );
+  }
+
+  // Ensure arrays are properly initialized
+  const userComplianceData = Array.isArray(analytics.userCompliance) ? analytics.userCompliance : [];
+  const policiesNeedingAttentionData = Array.isArray(analytics.policiesNeedingAttention) ? analytics.policiesNeedingAttention : [];
+  const recentActivityData = Array.isArray(analytics.recentActivity) ? analytics.recentActivity : [];
+  const userEngagementData = Array.isArray(analytics.userEngagement) ? analytics.userEngagement : [];
+  const sectionStatsData = Array.isArray(analytics.sectionStats) ? analytics.sectionStats : [];
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -119,7 +135,7 @@ export function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {(analytics?.userCompliance ?? []).map((user) => (
+              {userComplianceData.map((user) => (
                 <div key={user.user_id} className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>{user.username}</span>
@@ -145,7 +161,7 @@ export function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {(analytics?.policiesNeedingAttention ?? []).map((policy) => (
+              {policiesNeedingAttentionData.map((policy) => (
                 <div key={policy.id} className="space-y-2">
                   <div className="space-y-1">
                     <div className="flex justify-between text-sm">
@@ -174,7 +190,7 @@ export function AdminDashboard() {
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analytics?.sectionStats ?? []}>
+                <BarChart data={sectionStatsData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="title" />
                   <YAxis />
@@ -194,7 +210,7 @@ export function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {(analytics?.recentActivity ?? []).map((activity, index) => (
+              {recentActivityData.map((activity, index) => (
                 <div key={index} className="flex items-center">
                   <div className="ml-4 space-y-1">
                     <p className="text-sm font-medium leading-none">
@@ -219,7 +235,7 @@ export function AdminDashboard() {
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={analytics?.userEngagement ?? []}>
+                <LineChart data={userEngagementData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
