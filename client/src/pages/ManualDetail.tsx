@@ -20,7 +20,6 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -177,7 +176,13 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
   );
 }
 
-function SortablePolicy({ policy, sectionIndex, policyIndex, onUpdatePolicy, onDeletePolicy }: {
+function PolicyContent({
+  policy,
+  sectionIndex,
+  policyIndex,
+  onUpdatePolicy,
+  onDeletePolicy,
+}: {
   policy: Policy;
   sectionIndex: number;
   policyIndex: number;
@@ -223,178 +228,213 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, onUpdatePolicy, onD
   });
 
   return (
-    <div>
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-2 flex-1">
-              <span className="text-sm font-medium text-muted-foreground mt-1">
-                {sectionIndex + 1}.{policyIndex + 1}
-              </span>
-              <div>
-                <CardTitle className="text-base">{policy.title}</CardTitle>
-                <CardDescription className="flex items-center gap-2">
-                  Status: {policy.status}
-                  {policy.isAcknowledged && (
-                    <span className="flex items-center text-green-500">
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Acknowledged
-                    </span>
-                  )}
-                </CardDescription>
-              </div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-2 flex-1">
+            <span className="text-sm font-medium text-muted-foreground mt-1">
+              {sectionIndex + 1}.{policyIndex + 1}
+            </span>
+            <div>
+              <CardTitle className="text-base">{policy.title}</CardTitle>
+              <CardDescription className="flex items-center gap-2">
+                Status: {policy.status}
+                {policy.isAcknowledged && (
+                  <span className="flex items-center text-green-500">
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Acknowledged
+                  </span>
+                )}
+              </CardDescription>
             </div>
+          </div>
 
-            {canManagePolicy && (
-              <div className="flex items-center gap-2">
-                {user?.role === 'ADMIN' && (
+          {canManagePolicy && (
+            <div className="flex items-center gap-2">
+              {user?.role === 'ADMIN' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdatePolicy(policy.id, {
+                      title: policy.title,
+                      status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT',
+                    });
+                  }}
+                >
+                  {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
+                </Button>
+              )}
+
+              <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                <DialogTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      onUpdatePolicy(policy.id, {
-                        title: policy.title,
-                        status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT',
-                      });
-                    }}
+                    size="icon"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
+                    <Edit2 className="h-4 w-4" />
                   </Button>
-                )}
-
-                <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
-                    <DialogHeader>
-                      <DialogTitle>Edit Policy</DialogTitle>
-                      <DialogDescription>
-                        Update the policy details below.
-                      </DialogDescription>
-                    </DialogHeader>
-                    {policy.currentVersion && (
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          const formData = new FormData(e.currentTarget);
-                          const title = formData.get('title') as string;
-                          const bodyContent = formData.get(`bodyContent-${policy.id}`) as string;
-                          onUpdatePolicy(policy.id, {
-                            title,
-                            bodyContent,
-                          });
-                          setIsEditOpen(false);
-                        }}
-                        className="space-y-4 flex-1 overflow-y-auto pr-1"
-                      >
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Title</label>
-                          <Input
-                            name="title"
-                            defaultValue={policy.title}
-                            placeholder="Enter policy title"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Content</label>
-                          <input
-                            type="hidden"
-                            name={`bodyContent-${policy.id}`}
-                            id={`bodyContent-${policy.id}`}
-                          />
-                          <RichTextEditor
-                            content={policy.currentVersion.bodyContent}
-                            onChange={(html) => {
-                              const element = document.getElementById(`bodyContent-${policy.id}`);
-                              if (element) {
-                                (element as HTMLInputElement).value = html;
-                              }
-                            }}
-                            className="min-h-[250px] max-h-[350px] overflow-y-auto"
-                          />
-                        </div>
-                        <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t mt-4">
-                          <Button type="submit">
-                            Update Policy
-                          </Button>
-                        </DialogFooter>
-                      </form>
-                    )}
-                  </DialogContent>
-                </Dialog>
-
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={(e) => e.stopPropagation()}
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+                  <DialogHeader>
+                    <DialogTitle>Edit Policy</DialogTitle>
+                    <DialogDescription>
+                      Update the policy details below.
+                    </DialogDescription>
+                  </DialogHeader>
+                  {policy.currentVersion && (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.currentTarget);
+                        const title = formData.get('title') as string;
+                        const bodyContent = formData.get(`bodyContent-${policy.id}`) as string;
+                        onUpdatePolicy(policy.id, {
+                          title,
+                          bodyContent,
+                        });
+                        setIsEditOpen(false);
+                      }}
+                      className="space-y-4 flex-1 overflow-y-auto pr-1"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Policy</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete this policy? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => onDeletePolicy(policy.id)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Delete Policy
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            )}
-          </div>
-        </CardHeader>
-
-        {policy.currentVersion && (
-          <CardContent>
-            <div
-              className="prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
-            />
-            {/* Show acknowledge button for readers when policy is LIVE */}
-            {user?.role === 'READER' && policy.status === 'LIVE' && !policy.isAcknowledged && (
-              <div className="mt-4 flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  <span className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-yellow-500" />
-                    Acknowledgment required
-                  </span>
-                </div>
-                <Button
-                  onClick={() => acknowledgeMutation.mutate(policy.id)}
-                  disabled={acknowledgeMutation.isPending}
-                >
-                  {acknowledgeMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Acknowledging...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Acknowledge
-                    </>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Title</label>
+                        <Input
+                          name="title"
+                          defaultValue={policy.title}
+                          placeholder="Enter policy title"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Content</label>
+                        <input
+                          type="hidden"
+                          name={`bodyContent-${policy.id}`}
+                          id={`bodyContent-${policy.id}`}
+                        />
+                        <RichTextEditor
+                          content={policy.currentVersion.bodyContent}
+                          onChange={(html) => {
+                            const element = document.getElementById(`bodyContent-${policy.id}`);
+                            if (element) {
+                              (element as HTMLInputElement).value = html;
+                            }
+                          }}
+                          className="min-h-[250px] max-h-[350px] overflow-y-auto"
+                        />
+                      </div>
+                      <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t mt-4">
+                        <Button type="submit">
+                          Update Policy
+                        </Button>
+                      </DialogFooter>
+                    </form>
                   )}
-                </Button>
+                </DialogContent>
+              </Dialog>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Policy</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this policy? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => onDeletePolicy(policy.id)}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete Policy
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
+        </div>
+      </CardHeader>
+
+      {policy.currentVersion && (
+        <CardContent>
+          <div
+            className="prose prose-sm max-w-none"
+            dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
+          />
+          {/* Show acknowledge button for readers when policy is LIVE */}
+          {user?.role === 'READER' && policy.status === 'LIVE' && !policy.isAcknowledged && (
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  Acknowledgment required
+                </span>
               </div>
-            )}
-          </CardContent>
-        )}
-      </Card>
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  acknowledgeMutation.mutate(policy.id);
+                }}
+                disabled={acknowledgeMutation.isPending}
+              >
+                {acknowledgeMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Acknowledging...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Acknowledge
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+function SortablePolicy(props: {
+  policy: Policy;
+  sectionIndex: number;
+  policyIndex: number;
+  onUpdatePolicy: (policyId: number, data: { title: string; bodyContent?: string; status?: "DRAFT" | "LIVE" }) => void;
+  onDeletePolicy: (policyId: number) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: props.policy.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <div {...attributes} {...listeners} className="mb-4">
+        <PolicyContent {...props} />
+      </div>
     </div>
   );
 }
@@ -794,7 +834,7 @@ export function ManualDetail() {
     },
   });
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = (event: any) => {
     const { active, over } = event;
 
     if (!over || active.id === over.id || !manual?.sections) {
