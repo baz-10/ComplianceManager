@@ -120,7 +120,8 @@ export function setupAuth(app: Express) {
 
       // Check if this is the first user
       const allUsers = await db.select().from(users);
-      const role = allUsers.length === 0 ? "ADMIN" : "EDITOR";
+      // Default role is READER unless it's the first user
+      const role = allUsers.length === 0 ? "ADMIN" : "READER";
 
       const hashedPassword = await crypto.hash(password);
 
@@ -129,7 +130,7 @@ export function setupAuth(app: Express) {
         .values({
           username,
           password: hashedPassword,
-          role,
+          role, // Use the determined role
         })
         .returning();
 
@@ -148,13 +149,6 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    const result = insertUserSchema.safeParse(req.body);
-    if (!result.success) {
-      return res
-        .status(400)
-        .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
-    }
-
     passport.authenticate("local", (err: any, user: User, info: IVerifyOptions) => {
       if (err) {
         return next(err);
