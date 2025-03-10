@@ -15,7 +15,7 @@ const updateUserSchema = z.object({
 const createUserSchema = z.object({
   username: z.string().email("Username must be a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["ADMIN", "EDITOR", "READER"]),
+  role: z.enum(["ADMIN", "EDITOR", "READER"]).optional(), // Make role optional
 });
 
 const crypto = {
@@ -35,7 +35,7 @@ export const UserController = {
         return res.status(400).json({ error: result.error.message });
       }
 
-      const { username, password, role } = result.data;
+      const { username, password } = result.data;
 
       // Check if user already exists
       const [existingUser] = await db
@@ -47,6 +47,10 @@ export const UserController = {
       if (existingUser) {
         return res.status(400).json({ error: "Username already exists" });
       }
+
+      // Check if this is the first user - only first user becomes admin
+      const allUsers = await db.select().from(users);
+      const role = allUsers.length === 0 ? "ADMIN" : "READER"; // Changed default role to READER
 
       // Hash the password
       const hashedPassword = await crypto.hash(password);
