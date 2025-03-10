@@ -21,7 +21,36 @@ export const AdminController = {
           (SELECT COUNT(*) FROM policy_versions)::int as total_versions
       `);
       const totalStats = totalStatsResult[0];
-      console.log('Total stats:', totalStats);
+
+      // Get compliance stats by user
+      const userComplianceResult = await db.execute(sql`
+        WITH required_policies AS (
+          SELECT 
+            u.id as user_id,
+            u.username,
+            COUNT(DISTINCT p.id)::int as total_required,
+            COUNT(DISTINCT a.id)::int as total_acknowledged
+          FROM users u
+          CROSS JOIN policies p
+          LEFT JOIN policy_versions pv ON pv.policy_id = p.id AND pv.id = p.current_version_id
+          LEFT JOIN acknowledgements a ON a.policy_version_id = pv.id AND a.user_id = u.id
+          WHERE u.role != 'ADMIN'
+          GROUP BY u.id, u.username
+        )
+        SELECT 
+          user_id,
+          username,
+          total_required,
+          total_acknowledged,
+          CASE 
+            WHEN total_required > 0
+            THEN ROUND((total_acknowledged::float / total_required::float * 100)::numeric, 2)
+            ELSE 0
+          END as compliance_rate
+        FROM required_policies
+        ORDER BY compliance_rate DESC
+      `);
+      const userCompliance = userComplianceResult;
 
       // Get most viewed policies with simpler join
       const topPoliciesResult = await db.execute(sql`
@@ -30,18 +59,19 @@ export const AdminController = {
           p.title,
           COUNT(DISTINCT a.id)::int as acknowledgement_count,
           s.title as section_title,
-          m.title as manual_title
+          m.title as manual_title,
+          (SELECT COUNT(*)::int FROM users WHERE role != 'ADMIN') as total_users,
+          ROUND((COUNT(DISTINCT a.id)::float / (SELECT COUNT(*)::float FROM users WHERE role != 'ADMIN') * 100)::numeric, 2) as completion_rate
         FROM policies p 
         LEFT JOIN policy_versions pv ON pv.policy_id = p.id
         LEFT JOIN acknowledgements a ON a.policy_version_id = pv.id
         LEFT JOIN sections s ON p.section_id = s.id
         LEFT JOIN manuals m ON s.manual_id = m.id
         GROUP BY p.id, p.title, s.title, m.title
-        ORDER BY COUNT(DISTINCT a.id) DESC
+        ORDER BY completion_rate ASC
         LIMIT 5
       `);
-      const topPolicies = Array.isArray(topPoliciesResult) ? topPoliciesResult : [];
-      console.log('Top policies:', topPolicies);
+      const policiesNeedingAttention = topPoliciesResult;
 
       // Recent activity
       const recentActivityResult = await db.execute(sql`
@@ -57,8 +87,7 @@ export const AdminController = {
         ORDER BY a.acknowledged_at DESC
         LIMIT 10
       `);
-      const recentActivity = Array.isArray(recentActivityResult) ? recentActivityResult : [];
-      console.log('Recent activity:', recentActivity);
+      const recentActivity = recentActivityResult;
 
       // User engagement over time (last 30 days)
       const userEngagementResult = await db.execute(sql`
@@ -78,8 +107,7 @@ export const AdminController = {
         GROUP BY dates.date
         ORDER BY dates.date ASC
       `);
-      const userEngagement = Array.isArray(userEngagementResult) ? userEngagementResult : [];
-      console.log('User engagement:', userEngagement);
+      const userEngagement = userEngagementResult;
 
       // Section completion rates
       const sectionStatsResult = await db.execute(sql`
@@ -87,18 +115,21 @@ export const AdminController = {
           SELECT 
             s.id,
             s.title,
+            m.title as manual_title,
             COUNT(DISTINCT p.id)::int as total_policies,
             COUNT(DISTINCT a.id)::int as total_acknowledgements,
             (SELECT COUNT(*)::int FROM users WHERE role != 'ADMIN') as total_users
           FROM sections s
+          JOIN manuals m ON s.manual_id = m.id
           LEFT JOIN policies p ON p.section_id = s.id
           LEFT JOIN policy_versions pv ON pv.policy_id = p.id
           LEFT JOIN acknowledgements a ON a.policy_version_id = pv.id
-          GROUP BY s.id, s.title
+          GROUP BY s.id, s.title, m.title
         )
         SELECT 
           id,
           title,
+          manual_title,
           total_policies,
           total_acknowledgements,
           CASE 
@@ -110,12 +141,12 @@ export const AdminController = {
         WHERE total_policies > 0
         ORDER BY completion_rate DESC
       `);
-      const sectionStats = Array.isArray(sectionStatsResult) ? sectionStatsResult : [];
-      console.log('Section stats:', sectionStats);
+      const sectionStats = sectionStatsResult;
 
       res.json({
         totalStats,
-        topPolicies,
+        userCompliance,
+        policiesNeedingAttention,
         recentActivity,
         userEngagement,
         sectionStats

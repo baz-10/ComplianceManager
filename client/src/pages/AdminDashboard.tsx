@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { Loader2, Users, FileText, CheckSquare, GitCommit } from "lucide-react";
+import { Loader2, Users, FileText, CheckSquare, GitCommit, AlertTriangle } from "lucide-react";
 
 interface Analytics {
   totalStats: {
@@ -10,12 +11,21 @@ interface Analytics {
     total_acknowledgements: number;
     total_versions: number;
   };
-  topPolicies: Array<{
+  userCompliance: Array<{
+    user_id: number;
+    username: string;
+    total_required: number;
+    total_acknowledged: number;
+    compliance_rate: number;
+  }>;
+  policiesNeedingAttention: Array<{
     id: number;
     title: string;
     acknowledgement_count: number;
     section_title: string;
     manual_title: string;
+    total_users: number;
+    completion_rate: number;
   }>;
   recentActivity: Array<{
     username: string;
@@ -30,6 +40,7 @@ interface Analytics {
   sectionStats: Array<{
     id: number;
     title: string;
+    manual_title: string;
     total_policies: number;
     total_acknowledgements: number;
     completion_rate: number;
@@ -53,7 +64,7 @@ export function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Policy Analytics Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Policy Compliance Dashboard</h1>
       </div>
 
       {/* Overview Statistics */}
@@ -100,42 +111,75 @@ export function AdminDashboard() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {/* User Engagement Chart */}
-        <Card className="col-span-2">
+        {/* User Compliance */}
+        <Card>
           <CardHeader>
-            <CardTitle>User Engagement</CardTitle>
-            <CardDescription>Daily policy acknowledgements over the last 30 days</CardDescription>
+            <CardTitle>User Compliance</CardTitle>
+            <CardDescription>Individual user policy acknowledgement rates</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={analytics?.userEngagement ?? []}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="space-y-4">
+              {(analytics?.userCompliance ?? []).map((user) => (
+                <div key={user.user_id} className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>{user.username}</span>
+                    <span className="text-muted-foreground">
+                      {user.total_acknowledged} / {user.total_required} policies
+                    </span>
+                  </div>
+                  <Progress value={user.compliance_rate} />
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Top Policies */}
+        {/* Policies Needing Attention */}
         <Card>
           <CardHeader>
-            <CardTitle>Most Viewed Policies</CardTitle>
-            <CardDescription>Policies with highest acknowledgement rates</CardDescription>
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              <CardTitle>Policies Needing Attention</CardTitle>
+            </div>
+            <CardDescription>Policies with lowest completion rates</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {(analytics?.policiesNeedingAttention ?? []).map((policy) => (
+                <div key={policy.id} className="space-y-2">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">{policy.title}</span>
+                      <span className="text-muted-foreground">
+                        {policy.acknowledgement_count} / {policy.total_users} users
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {policy.manual_title} - {policy.section_title}
+                    </p>
+                  </div>
+                  <Progress value={policy.completion_rate} className="bg-warning/20" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Section Completion Chart */}
+        <Card className="col-span-2">
+          <CardHeader>
+            <CardTitle>Section Completion Rates</CardTitle>
+            <CardDescription>Policy acknowledgement rates by section</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analytics?.topPolicies ?? []}>
+                <BarChart data={analytics?.sectionStats ?? []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="title" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="acknowledgement_count" fill="hsl(var(--primary))" />
+                  <Bar dataKey="completion_rate" fill="hsl(var(--primary))" name="Completion Rate (%)" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -162,6 +206,27 @@ export function AdminDashboard() {
                   </div>
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* User Engagement Trend */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Daily Acknowledgements</CardTitle>
+            <CardDescription>Policy acknowledgements over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={analytics?.userEngagement ?? []}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
