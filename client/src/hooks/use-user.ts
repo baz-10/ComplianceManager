@@ -1,18 +1,12 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
-import type { User } from "@db/schema"; // Using the import from the edited code
-
-type RequestResult = {
-  ok: true;
-} | {
-  ok: false;
-  message: string;
-};
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { User } from "@db/schema";
+import { useToast } from "@/hooks/use-toast";
 
 async function handleRequest(
   url: string,
   method: string,
   body?: { username: string; password: string }
-): Promise<RequestResult> {
+): Promise<Response> {
   try {
     const response = await fetch(url, {
       method,
@@ -20,21 +14,16 @@ async function handleRequest(
       body: body ? JSON.stringify(body) : undefined,
       credentials: "include",
     });
-
-    if (!response.ok) {
-      if (response.status >= 500) {
-        return { ok: false, message: response.statusText };
-      }
-
-      const message = await response.text();
-      return { ok: false, message };
-    }
-
-    return { ok: true };
+    return response;
   } catch (e: any) {
-    return { ok: false, message: e.toString() };
+    throw new Error(e.toString());
   }
 }
+
+type LoginResponse = {
+  message: string;
+  user: User;
+};
 
 async function fetchUser(): Promise<User | null> {
   const response = await fetch('/api/user', {
@@ -45,7 +34,6 @@ async function fetchUser(): Promise<User | null> {
     if (response.status === 401) {
       return null;
     }
-
     throw new Error(await response.text());
   }
 
@@ -53,6 +41,9 @@ async function fetchUser(): Promise<User | null> {
 }
 
 export function useUser() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const { data: user, error, isLoading } = useQuery<User | null, Error>({
     queryKey: ['/api/user'],
     queryFn: fetchUser,
@@ -61,25 +52,91 @@ export function useUser() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: (userData: { username: string; password: string }) =>
-      handleRequest('/api/login', 'POST', userData),
-    onSuccess: () => {
-      // queryClient.invalidateQueries({ queryKey: ['/api/user'] });  // Removed as useQueryClient is not available in this simplified version.  Consider alternative state management if needed.
+    mutationFn: async (credentials: { username: string; password: string }): Promise<LoginResponse> => {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['/api/user'], data.user);
+      toast({
+        title: "Success",
+        description: "Logged in successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
   const logoutMutation = useMutation({
-    mutationFn: () => handleRequest('/api/logout', 'POST'),
+    mutationFn: async () => {
+      const response = await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+    },
     onSuccess: () => {
-      // queryClient.invalidateQueries({ queryKey: ['/api/user'] }); // Removed as useQueryClient is not available in this simplified version. Consider alternative state management if needed.
+      queryClient.setQueryData(['/api/user'], null);
+      toast({
+        title: "Success",
+        description: "Logged out successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
   const registerMutation = useMutation({
-    mutationFn: (userData: { username: string; password: string }) =>
-      handleRequest('/api/register', 'POST', userData),
-    onSuccess: () => {
-      // queryClient.invalidateQueries({ queryKey: ['/api/user'] }); // Removed as useQueryClient is not available in this simplified version. Consider alternative state management if needed.
+    mutationFn: async (userData: { username: string; password: string }): Promise<LoginResponse> => {
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['/api/user'], data.user);
+      toast({
+        title: "Success",
+        description: "Registration successful",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
