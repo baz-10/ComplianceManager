@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { ExportDialog } from "@/components/ExportDialog";
-import { useState } from "react";
 
 // Schema definitions
 const createPolicySchema = z.object({
@@ -109,7 +109,13 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button className="mt-4">
+        <Button 
+          className="mt-4"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Policy
         </Button>
@@ -163,7 +169,6 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
                 </FormItem>
               )}
             />
-            <div className="h-4"></div> {/* Spacer to ensure footer visibility */}
             <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t mt-4">
               <Button type="submit">
                 Create Policy
@@ -227,6 +232,27 @@ function PolicyContent({
     },
   });
 
+  const handlePublishClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onUpdatePolicy(policy.id, {
+      title: policy.title,
+      status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT',
+    });
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsEditOpen(true);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDeletePolicy(policy.id);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -255,13 +281,7 @@ function PolicyContent({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onUpdatePolicy(policy.id, {
-                      title: policy.title,
-                      status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT',
-                    });
-                  }}
+                  onClick={handlePublishClick}
                 >
                   {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
                 </Button>
@@ -269,10 +289,10 @@ function PolicyContent({
 
               <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                 <DialogTrigger asChild>
-                  <Button
-                    variant="ghost"
+                  <Button 
+                    variant="ghost" 
                     size="icon"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={handleEditClick}
                   >
                     <Edit2 className="h-4 w-4" />
                   </Button>
@@ -340,7 +360,7 @@ function PolicyContent({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={handleDeleteClick}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -385,6 +405,7 @@ function PolicyContent({
               </div>
               <Button
                 onClick={(e) => {
+                  e.preventDefault();
                   e.stopPropagation();
                   acknowledgeMutation.mutate(policy.id);
                 }}
@@ -417,6 +438,9 @@ function SortablePolicy(props: {
   onUpdatePolicy: (policyId: number, data: { title: string; bodyContent?: string; status?: "DRAFT" | "LIVE" }) => void;
   onDeletePolicy: (policyId: number) => void;
 }) {
+  const { user } = useUser();
+  const canManagePolicy = user?.role === 'ADMIN' || user?.role === 'EDITOR';
+
   const {
     attributes,
     listeners,
@@ -432,7 +456,16 @@ function SortablePolicy(props: {
 
   return (
     <div ref={setNodeRef} style={style}>
-      <div {...attributes} {...listeners} className="mb-4">
+      <div className="mb-4">
+        {canManagePolicy && (
+          <div
+            className="cursor-grab opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center h-6 mb-2"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </div>
+        )}
         <PolicyContent {...props} />
       </div>
     </div>
@@ -897,7 +930,12 @@ export function ManualDetail() {
           <h2 className="text-2xl font-semibold">Sections</h2>
           <Dialog>
             <DialogTrigger asChild>
-              <Button>
+              <Button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
                 <FileText className="h-4 w-4 mr-2" />
                 Add Section
               </Button>
