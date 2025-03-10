@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '@db';
-import { policies, policyVersions, acknowledgements, annotations, type Policy, type PolicyVersion } from '@db/schema';
+import { policies, policyVersions, acknowledgements, type Policy } from '@db/schema';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 
@@ -50,7 +50,7 @@ export const PolicyController = {
       const result = createPolicySchema.safeParse(req.body);
       if (!result.success) {
         console.error('Policy validation failed:', result.error.issues);
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Invalid input',
           details: result.error.issues
         });
@@ -93,9 +93,9 @@ export const PolicyController = {
 
       console.log('Policy updated with current version:', updatedPolicy);
 
-      res.status(201).json({ 
+      res.status(201).json({
         policy: updatedPolicy,
-        version 
+        version
       });
     } catch (error) {
       console.error('Failed to create policy:', error);
@@ -167,7 +167,7 @@ export const PolicyController = {
       const result = updatePolicySchema.safeParse(req.body);
 
       if (!result.success) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Invalid input',
           details: result.error.issues
         });
@@ -175,7 +175,7 @@ export const PolicyController = {
 
       const [updatedPolicy] = await db
         .update(policies)
-        .set({ 
+        .set({
           title: result.data.title,
           status: result.data.status,
           updatedAt: new Date()
@@ -214,7 +214,7 @@ export const PolicyController = {
         // Delete all acknowledgements for all versions of this policy
         await tx.delete(acknowledgements)
           .where(
-            eq(acknowledgements.policyVersionId, 
+            eq(acknowledgements.policyVersionId,
               db.select({ id: policyVersions.id })
                 .from(policyVersions)
                 .where(eq(policyVersions.policyId, parseInt(policyId)))
@@ -251,16 +251,29 @@ export const PolicyController = {
 
   async acknowledge(req: Request, res: Response) {
     try {
-      const { policyVersionId } = req.params;
+      const { policyId } = req.params;
 
       if (!req.user) {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
+      // Get the current version of the policy
+      const policy = await db.query.policies.findFirst({
+        where: eq(policies.id, parseInt(policyId)),
+        with: {
+          currentVersion: true
+        }
+      });
+
+      if (!policy || !policy.currentVersion) {
+        return res.status(404).json({ error: 'Policy or current version not found' });
+      }
+
+      // Check if already acknowledged
       const existing = await db.query.acknowledgements.findFirst({
         where: and(
           eq(acknowledgements.userId, req.user.id),
-          eq(acknowledgements.policyVersionId, parseInt(policyVersionId))
+          eq(acknowledgements.policyVersionId, policy.currentVersion.id)
         )
       });
 
@@ -268,10 +281,12 @@ export const PolicyController = {
         return res.status(400).json({ error: 'Already acknowledged' });
       }
 
+      // Create acknowledgement
       const [acknowledgement] = await db.insert(acknowledgements)
         .values({
           userId: req.user.id,
-          policyVersionId: parseInt(policyVersionId)
+          policyVersionId: policy.currentVersion.id,
+          acknowledgedAt: new Date()
         })
         .returning();
 

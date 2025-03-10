@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, ArrowLeft, Plus, GripVertical, Loader2, Edit2, Trash2 } from "lucide-react";
+import { FileText, ArrowLeft, Plus, GripVertical, Loader2, Edit2, Trash2, CheckCircle, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
@@ -69,6 +69,8 @@ interface Policy {
   currentVersion?: {
     bodyContent: string;
   };
+  isAcknowledged?: boolean;
+  acknowledgedAt?: string;
 }
 
 interface Section {
@@ -173,14 +175,40 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children }: {
   policyIndex: number;
   children: React.ReactNode;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: policy.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: policy.id });
+  const { user } = useUser();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { id } = useParams();
+
+  const acknowledgeMutation = useMutation({
+    mutationFn: async (policyId: number) => {
+      const response = await fetch(`/api/policies/${policyId}/acknowledge`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
+      toast({
+        title: "Success",
+        description: "Policy acknowledged successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -212,6 +240,41 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children }: {
               className="prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
             />
+            {user && policy.status === "LIVE" && (
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  {policy.isAcknowledged ? (
+                    <span className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      Acknowledged on {new Date(policy.acknowledgedAt!).toLocaleDateString()}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-yellow-500" />
+                      Acknowledgment required
+                    </span>
+                  )}
+                </div>
+                {!policy.isAcknowledged && (
+                  <Button
+                    onClick={() => acknowledgeMutation.mutate(policy.id)}
+                    disabled={acknowledgeMutation.isPending}
+                  >
+                    {acknowledgeMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Acknowledging...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Acknowledge
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            )}
           </CardContent>
         )}
       </Card>
@@ -234,15 +297,7 @@ function SortableSection({
   onDeletePolicy: (policyId: number) => void;
   onCreatePolicy: (sectionId: number, data: CreatePolicyForm) => void;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: section.id });
-
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
