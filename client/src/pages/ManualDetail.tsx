@@ -109,12 +109,8 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button 
+        <Button
           className="mt-4"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Policy
@@ -199,6 +195,7 @@ function PolicyContent({
   const { toast } = useToast();
   const { id } = useParams();
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   // Show edit/delete/publish buttons only for admin/editor
   const canManagePolicy = user?.role === 'ADMIN' || user?.role === 'EDITOR';
@@ -232,27 +229,6 @@ function PolicyContent({
     },
   });
 
-  const handlePublishClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onUpdatePolicy(policy.id, {
-      title: policy.title,
-      status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT',
-    });
-  };
-
-  const handleEditClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsEditOpen(true);
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onDeletePolicy(policy.id);
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -281,108 +257,32 @@ function PolicyContent({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handlePublishClick}
+                  onClick={() => {
+                    onUpdatePolicy(policy.id, {
+                      title: policy.title,
+                      status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT',
+                    });
+                  }}
                 >
                   {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
                 </Button>
               )}
 
-              <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                <DialogTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={handleEditClick}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
-                  <DialogHeader>
-                    <DialogTitle>Edit Policy</DialogTitle>
-                    <DialogDescription>
-                      Update the policy details below.
-                    </DialogDescription>
-                  </DialogHeader>
-                  {policy.currentVersion && (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const formData = new FormData(e.currentTarget);
-                        const title = formData.get('title') as string;
-                        const bodyContent = formData.get(`bodyContent-${policy.id}`) as string;
-                        onUpdatePolicy(policy.id, {
-                          title,
-                          bodyContent,
-                        });
-                        setIsEditOpen(false);
-                      }}
-                      className="space-y-4 flex-1 overflow-y-auto pr-1"
-                    >
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Title</label>
-                        <Input
-                          name="title"
-                          defaultValue={policy.title}
-                          placeholder="Enter policy title"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Content</label>
-                        <input
-                          type="hidden"
-                          name={`bodyContent-${policy.id}`}
-                          id={`bodyContent-${policy.id}`}
-                        />
-                        <RichTextEditor
-                          content={policy.currentVersion.bodyContent}
-                          onChange={(html) => {
-                            const element = document.getElementById(`bodyContent-${policy.id}`);
-                            if (element) {
-                              (element as HTMLInputElement).value = html;
-                            }
-                          }}
-                          className="min-h-[250px] max-h-[350px] overflow-y-auto"
-                        />
-                      </div>
-                      <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t mt-4">
-                        <Button type="submit">
-                          Update Policy
-                        </Button>
-                      </DialogFooter>
-                    </form>
-                  )}
-                </DialogContent>
-              </Dialog>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsEditOpen(true)}
+              >
+                <Edit2 className="h-4 w-4" />
+              </Button>
 
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleDeleteClick}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Policy</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete this policy? This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => onDeletePolicy(policy.id)}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Delete Policy
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsDeleteOpen(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
           )}
         </div>
@@ -394,7 +294,6 @@ function PolicyContent({
             className="prose prose-sm max-w-none"
             dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
           />
-          {/* Show acknowledge button for readers when policy is LIVE */}
           {user?.role === 'READER' && policy.status === 'LIVE' && !policy.isAcknowledged && (
             <div className="mt-4 flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
@@ -404,11 +303,7 @@ function PolicyContent({
                 </span>
               </div>
               <Button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  acknowledgeMutation.mutate(policy.id);
-                }}
+                onClick={() => acknowledgeMutation.mutate(policy.id)}
                 disabled={acknowledgeMutation.isPending}
               >
                 {acknowledgeMutation.isPending ? (
@@ -427,6 +322,88 @@ function PolicyContent({
           )}
         </CardContent>
       )}
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Edit Policy</DialogTitle>
+            <DialogDescription>
+              Update the policy details below.
+            </DialogDescription>
+          </DialogHeader>
+          {policy.currentVersion && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const title = formData.get('title') as string;
+                const bodyContent = formData.get(`bodyContent-${policy.id}`) as string;
+                onUpdatePolicy(policy.id, {
+                  title,
+                  bodyContent,
+                });
+                setIsEditOpen(false);
+              }}
+              className="space-y-4 flex-1 overflow-y-auto pr-1"
+            >
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Title</label>
+                <Input
+                  name="title"
+                  defaultValue={policy.title}
+                  placeholder="Enter policy title"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Content</label>
+                <input
+                  type="hidden"
+                  name={`bodyContent-${policy.id}`}
+                  id={`bodyContent-${policy.id}`}
+                />
+                <RichTextEditor
+                  content={policy.currentVersion.bodyContent}
+                  onChange={(html) => {
+                    const element = document.getElementById(`bodyContent-${policy.id}`);
+                    if (element) {
+                      (element as HTMLInputElement).value = html;
+                    }
+                  }}
+                  className="min-h-[250px] max-h-[350px] overflow-y-auto"
+                />
+              </div>
+              <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t mt-4">
+                <Button type="submit">
+                  Update Policy
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Policy</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this policy? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                onDeletePolicy(policy.id);
+                setIsDeleteOpen(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Policy
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
@@ -572,7 +549,7 @@ function SortableSection({
   );
 }
 
-export function ManualDetail() {
+function ManualDetail() {
   const { id } = useParams();
   const { user } = useUser();
   const { toast } = useToast();
@@ -930,12 +907,7 @@ export function ManualDetail() {
           <h2 className="text-2xl font-semibold">Sections</h2>
           <Dialog>
             <DialogTrigger asChild>
-              <Button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-              >
+              <Button>
                 <FileText className="h-4 w-4 mr-2" />
                 Add Section
               </Button>
