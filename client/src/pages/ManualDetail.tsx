@@ -180,7 +180,7 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
   policy: Policy;
   sectionIndex: number;
   policyIndex: number;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   onUpdatePolicy: (policyId: number, data: { title: string; bodyContent?: string; status?: "DRAFT" | "LIVE" }) => void;
   onDeletePolicy: (policyId: number) => void;
 }) {
@@ -311,12 +311,12 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
                           <input
                             type="hidden"
                             name="bodyContent"
-                            id="bodyContent"
+                            id={`bodyContent-${policy.id}`}
                           />
                           <RichTextEditor
                             content={policy.currentVersion.bodyContent}
                             onChange={(html) => {
-                              const element = document.getElementById('bodyContent');
+                              const element = document.getElementById(`bodyContent-${policy.id}`);
                               if (element) {
                                 (element as HTMLInputElement).value = html;
                               }
@@ -324,7 +324,7 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
                             className="min-h-[250px] max-h-[350px] overflow-y-auto"
                           />
                         </div>
-                        <div className="h-4"></div> {/* Spacer to ensure footer visibility */}
+                        <div className="h-4"></div>
                         <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t mt-4">
                           <Button type="submit">
                             Update Policy
@@ -334,6 +334,7 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
                     )}
                   </DialogContent>
                 </Dialog>
+
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="ghost" size="icon">
@@ -483,7 +484,7 @@ function SortableSection({
                       onUpdatePolicy={onUpdatePolicy}
                       onDeletePolicy={onDeletePolicy}
                     >
-                      
+
                     </SortablePolicy>
                   ))}
                 </div>
