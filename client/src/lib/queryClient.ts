@@ -13,11 +13,7 @@ export const queryClient = new QueryClient({
             return null;
           }
 
-          if (res.status >= 500) {
-            throw new Error(`${res.status}: ${res.statusText}`);
-          }
-
-          throw new Error(`${res.status}: ${await res.text()}`);
+          throw new Error(await res.text());
         }
 
         return res.json();
@@ -27,8 +23,5 @@ export const queryClient = new QueryClient({
       staleTime: Infinity,
       retry: false,
     },
-    mutations: {
-      retry: false,
-    }
   },
 });
