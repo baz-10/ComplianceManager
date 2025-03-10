@@ -193,13 +193,6 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, onUpdatePolicy, onD
   // Show edit/delete/publish buttons only for admin/editor
   const canManagePolicy = user?.role === 'ADMIN' || user?.role === 'EDITOR';
 
-  // Only initialize drag-and-drop for admin/editor
-  const sortableProps = canManagePolicy
-    ? useSortable({ id: policy.id })
-    : { attributes: {}, listeners: {}, setNodeRef: () => {}, style: {} };
-
-  const { attributes, listeners, setNodeRef, style } = sortableProps;
-
   const acknowledgeMutation = useMutation({
     mutationFn: async (policyId: number) => {
       const response = await fetch(`/api/policies/${policyId}/acknowledge`, {
@@ -230,54 +223,48 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, onUpdatePolicy, onD
   });
 
   return (
-    <div ref={setNodeRef} style={style}>
-      <Card className="bg-accent">
+    <div>
+      <Card>
         <CardHeader>
-          <div className="flex items-start gap-2">
-            {canManagePolicy && (
-              <span
-                className="cursor-grab opacity-0 hover:opacity-100 transition-opacity mt-1"
-                {...attributes}
-                {...listeners}
-              >
-                <GripVertical className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-2 flex-1">
+              <span className="text-sm font-medium text-muted-foreground mt-1">
+                {sectionIndex + 1}.{policyIndex + 1}
               </span>
-            )}
-            <span className="text-sm font-medium text-muted-foreground mt-1">
-              {sectionIndex + 1}.{policyIndex + 1}
-            </span>
-            <div className="flex-1">
-              <CardTitle className="text-base">{policy.title}</CardTitle>
-              <CardDescription className="flex items-center gap-2">
-                Status: {policy.status}
-                {policy.isAcknowledged && (
-                  <span className="flex items-center text-green-500">
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Acknowledged
-                  </span>
-                )}
-              </CardDescription>
+              <div>
+                <CardTitle className="text-base">{policy.title}</CardTitle>
+                <CardDescription className="flex items-center gap-2">
+                  Status: {policy.status}
+                  {policy.isAcknowledged && (
+                    <span className="flex items-center text-green-500">
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Acknowledged
+                    </span>
+                  )}
+                </CardDescription>
+              </div>
             </div>
+
             {canManagePolicy && (
-              <div className="flex items-center gap-2 z-10">
+              <div className="flex items-center gap-2">
                 {user?.role === 'ADMIN' && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="pointer-events-auto"
-                    onClick={() =>
+                    onClick={() => {
                       onUpdatePolicy(policy.id, {
                         title: policy.title,
                         status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT',
-                      })
-                    }
+                      });
+                    }}
                   >
                     {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
                   </Button>
                 )}
+
                 <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="pointer-events-auto">
+                    <Button variant="ghost" size="icon">
                       <Edit2 className="h-4 w-4" />
                     </Button>
                   </DialogTrigger>
@@ -329,7 +316,6 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, onUpdatePolicy, onD
                             className="min-h-[250px] max-h-[350px] overflow-y-auto"
                           />
                         </div>
-                        <div className="h-4"></div>
                         <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t mt-4">
                           <Button type="submit">
                             Update Policy
@@ -342,7 +328,11 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, onUpdatePolicy, onD
 
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="pointer-events-auto">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </AlertDialogTrigger>
@@ -368,6 +358,7 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, onUpdatePolicy, onD
             )}
           </div>
         </CardHeader>
+
         {policy.currentVersion && (
           <CardContent>
             <div
