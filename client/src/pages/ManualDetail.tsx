@@ -176,12 +176,13 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
   );
 }
 
-function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdatePolicy }: {
+function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdatePolicy, onDeletePolicy }: {
   policy: Policy;
   sectionIndex: number;
   policyIndex: number;
   children: React.ReactNode;
   onUpdatePolicy: (policyId: number, data: { title: string; bodyContent?: string; status?: "DRAFT" | "LIVE" }) => void;
+  onDeletePolicy: (policyId: number) => void;
 }) {
   const { user } = useUser();
   const queryClient = useQueryClient();
@@ -190,6 +191,13 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
 
   // Show edit/delete/publish buttons only for admin/editor
   const canManagePolicy = user?.role === 'ADMIN' || user?.role === 'EDITOR';
+
+  // Only initialize drag-and-drop for admin/editor
+  const sortableProps = canManagePolicy
+    ? useSortable({ id: policy.id })
+    : { attributes: {}, listeners: {}, setNodeRef: () => {}, style: {} };
+
+  const { attributes, listeners, setNodeRef, style } = sortableProps;
 
   const acknowledgeMutation = useMutation({
     mutationFn: async (policyId: number) => {
@@ -220,17 +228,20 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
     },
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
   return (
-    <div  style={style}>
+    <div ref={setNodeRef} style={style}>
       <Card className="group bg-accent">
         <CardHeader>
           <div className="flex items-start gap-2">
+            {canManagePolicy && (
+              <span
+                className="cursor-grab opacity-0 group-hover:opacity-100 transition-opacity mt-1"
+                {...attributes}
+                {...listeners}
+              >
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+              </span>
+            )}
             <span className="text-sm font-medium text-muted-foreground mt-1">
               {sectionIndex + 1}.{policyIndex + 1}
             </span>
@@ -407,7 +418,8 @@ function SortableSection({
   onDeletePolicy: (policyId: number) => void;
   onCreatePolicy: (sectionId: number, data: CreatePolicyForm) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
+  const { user } = useUser();
+  const { attributes, listeners, setNodeRef } = useSortable({ id: section.id });
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -415,14 +427,8 @@ function SortableSection({
     })
   );
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} {...attributes} {...listeners}>
       <Card className="group">
         <CardHeader>
           <div className="flex items-center gap-2">
