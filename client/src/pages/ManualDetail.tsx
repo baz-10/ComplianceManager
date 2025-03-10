@@ -231,12 +231,12 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, onUpdatePolicy, onD
 
   return (
     <div ref={setNodeRef} style={style}>
-      <Card className="group bg-accent">
+      <Card className="bg-accent">
         <CardHeader>
           <div className="flex items-start gap-2">
             {canManagePolicy && (
               <span
-                className="cursor-grab opacity-0 group-hover:opacity-100 transition-opacity mt-1"
+                className="cursor-grab opacity-0 hover:opacity-100 transition-opacity mt-1"
                 {...attributes}
                 {...listeners}
               >
@@ -259,11 +259,12 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, onUpdatePolicy, onD
               </CardDescription>
             </div>
             {canManagePolicy && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 z-10">
                 {user?.role === 'ADMIN' && (
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="pointer-events-auto"
                     onClick={() =>
                       onUpdatePolicy(policy.id, {
                         title: policy.title,
@@ -276,7 +277,7 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, onUpdatePolicy, onD
                 )}
                 <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" className="pointer-events-auto">
                       <Edit2 className="h-4 w-4" />
                     </Button>
                   </DialogTrigger>
@@ -341,7 +342,7 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, onUpdatePolicy, onD
 
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" className="pointer-events-auto">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </AlertDialogTrigger>
@@ -365,7 +366,6 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, onUpdatePolicy, onD
                 </AlertDialog>
               </div>
             )}
-            {/*children*/}
           </div>
         </CardHeader>
         {policy.currentVersion && (
