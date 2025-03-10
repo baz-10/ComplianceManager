@@ -12,15 +12,15 @@ declare module 'express-serve-static-core' {
 export const AdminController = {
   async getPerformanceMetrics(_req: Request, res: Response) {
     try {
-      // Fetch total counts with simpler queries
+      // Fetch total counts
       const totalStatsResult = await db.execute(sql`
         SELECT 
           (SELECT COUNT(*) FROM policies)::int as total_policies,
-          (SELECT COUNT(*) FROM users)::int as total_users,
+          (SELECT COUNT(*) FROM users WHERE role != 'ADMIN')::int as total_users,
           (SELECT COUNT(*) FROM acknowledgements)::int as total_acknowledgements,
           (SELECT COUNT(*) FROM policy_versions)::int as total_versions
       `);
-      const totalStats = totalStatsResult[0];
+      const totalStats = totalStatsResult.rows[0];
 
       // Get compliance stats by user
       const userComplianceResult = await db.execute(sql`
@@ -50,10 +50,10 @@ export const AdminController = {
         FROM required_policies
         ORDER BY compliance_rate DESC
       `);
-      const userCompliance = userComplianceResult;
+      const userCompliance = userComplianceResult.rows;
 
-      // Get most viewed policies with simpler join
-      const topPoliciesResult = await db.execute(sql`
+      // Get policies needing attention
+      const policiesNeedingAttentionResult = await db.execute(sql`
         SELECT 
           p.id,
           p.title,
@@ -71,7 +71,7 @@ export const AdminController = {
         ORDER BY completion_rate ASC
         LIMIT 5
       `);
-      const policiesNeedingAttention = topPoliciesResult;
+      const policiesNeedingAttention = policiesNeedingAttentionResult.rows;
 
       // Recent activity
       const recentActivityResult = await db.execute(sql`
@@ -87,7 +87,7 @@ export const AdminController = {
         ORDER BY a.acknowledged_at DESC
         LIMIT 10
       `);
-      const recentActivity = recentActivityResult;
+      const recentActivity = recentActivityResult.rows;
 
       // User engagement over time (last 30 days)
       const userEngagementResult = await db.execute(sql`
@@ -107,7 +107,7 @@ export const AdminController = {
         GROUP BY dates.date
         ORDER BY dates.date ASC
       `);
-      const userEngagement = userEngagementResult;
+      const userEngagement = userEngagementResult.rows;
 
       // Section completion rates
       const sectionStatsResult = await db.execute(sql`
@@ -141,7 +141,7 @@ export const AdminController = {
         WHERE total_policies > 0
         ORDER BY completion_rate DESC
       `);
-      const sectionStats = sectionStatsResult;
+      const sectionStats = sectionStatsResult.rows;
 
       res.json({
         totalStats,
