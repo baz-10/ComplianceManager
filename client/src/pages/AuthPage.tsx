@@ -7,10 +7,9 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUser } from "@/hooks/use-user";
-import { useToast } from "@/hooks/use-toast";
 
 const authSchema = z.object({
-  username: z.string().min(1, "Username is required"),
+  username: z.string().email("Username must be a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -19,7 +18,6 @@ type AuthForm = z.infer<typeof authSchema>;
 export function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const { login, register } = useUser();
-  const { toast } = useToast();
 
   const form = useForm<AuthForm>({
     resolver: zodResolver(authSchema),
@@ -33,23 +31,14 @@ export function AuthPage() {
     try {
       if (isLogin) {
         await login(data);
-        toast({
-          title: "Success",
-          description: "Logged in successfully",
-        });
       } else {
-        await register(data);
-        toast({
-          title: "Success",
-          description: "Registered successfully",
+        await register({
+          ...data,
+          role: "READER" // Explicitly set role for new registrations
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Authentication failed",
-        variant: "destructive",
-      });
+      // Error handling is done in the useUser hook
     }
   };
 
@@ -61,7 +50,7 @@ export function AuthPage() {
           <CardDescription>
             {isLogin
               ? "Welcome back! Please login to continue."
-              : "Create an account to get started."}
+              : "Create a new reader account to get started."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -72,9 +61,9 @@ export function AuthPage() {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter your username" {...field} />
+                      <Input placeholder="Enter your email" type="email" {...field} />
                     </FormControl>
                   </FormItem>
                 )}
