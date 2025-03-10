@@ -177,11 +177,10 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
   );
 }
 
-function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdatePolicy, onDeletePolicy }: {
+function SortablePolicy({ policy, sectionIndex, policyIndex, onUpdatePolicy, onDeletePolicy }: {
   policy: Policy;
   sectionIndex: number;
   policyIndex: number;
-  children?: React.ReactNode;
   onUpdatePolicy: (policyId: number, data: { title: string; bodyContent?: string; status?: "DRAFT" | "LIVE" }) => void;
   onDeletePolicy: (policyId: number) => void;
 }) {
@@ -230,11 +229,6 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
     },
   });
 
-  const handleUpdatePolicy = (data: { title: string; bodyContent?: string }) => {
-    onUpdatePolicy(policy.id, data);
-    setIsEditOpen(false);
-  };
-
   return (
     <div ref={setNodeRef} style={style}>
       <Card className="group bg-accent">
@@ -270,10 +264,12 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onUpdatePolicy(policy.id, {
-                      title: policy.title,
-                      status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT'
-                    })}
+                    onClick={() =>
+                      onUpdatePolicy(policy.id, {
+                        title: policy.title,
+                        status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT',
+                      })
+                    }
                   >
                     {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
                   </Button>
@@ -297,11 +293,12 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
                           e.preventDefault();
                           const formData = new FormData(e.currentTarget);
                           const title = formData.get('title') as string;
-                          const bodyContent = formData.get('bodyContent') as string;
-                          handleUpdatePolicy({
+                          const bodyContent = formData.get(`bodyContent-${policy.id}`) as string;
+                          onUpdatePolicy(policy.id, {
                             title,
-                            bodyContent
+                            bodyContent,
                           });
+                          setIsEditOpen(false);
                         }}
                         className="space-y-4 flex-1 overflow-y-auto pr-1"
                       >
@@ -317,7 +314,7 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
                           <label className="text-sm font-medium">Content</label>
                           <input
                             type="hidden"
-                            name="bodyContent"
+                            name={`bodyContent-${policy.id}`}
                             id={`bodyContent-${policy.id}`}
                           />
                           <RichTextEditor
@@ -368,7 +365,7 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
                 </AlertDialog>
               </div>
             )}
-            {children}
+            {/*children*/}
           </div>
         </CardHeader>
         {policy.currentVersion && (
@@ -490,9 +487,7 @@ function SortableSection({
                       policyIndex={policyIndex}
                       onUpdatePolicy={onUpdatePolicy}
                       onDeletePolicy={onDeletePolicy}
-                    >
-
-                    </SortablePolicy>
+                    />
                   ))}
                 </div>
               </SortableContext>
