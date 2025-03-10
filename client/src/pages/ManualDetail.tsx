@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { ExportDialog } from "@/components/ExportDialog";
+import { useState } from "react";
 
 // Schema definitions
 const createPolicySchema = z.object({
@@ -188,6 +189,7 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { id } = useParams();
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   // Show edit/delete/publish buttons only for admin/editor
   const canManagePolicy = user?.role === 'ADMIN' || user?.role === 'EDITOR';
@@ -227,6 +229,11 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
       });
     },
   });
+
+  const handleUpdatePolicy = (data: { title: string; bodyContent?: string }) => {
+    onUpdatePolicy(policy.id, data);
+    setIsEditOpen(false);
+  };
 
   return (
     <div ref={setNodeRef} style={style}>
@@ -271,7 +278,7 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
                     {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
                   </Button>
                 )}
-                <Dialog>
+                <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                   <DialogTrigger asChild>
                     <Button variant="ghost" size="icon">
                       <Edit2 className="h-4 w-4" />
@@ -291,9 +298,9 @@ function SortablePolicy({ policy, sectionIndex, policyIndex, children, onUpdateP
                           const formData = new FormData(e.currentTarget);
                           const title = formData.get('title') as string;
                           const bodyContent = formData.get('bodyContent') as string;
-                          onUpdatePolicy(policy.id, {
+                          handleUpdatePolicy({
                             title,
-                            bodyContent: bodyContent
+                            bodyContent
                           });
                         }}
                         className="space-y-4 flex-1 overflow-y-auto pr-1"
