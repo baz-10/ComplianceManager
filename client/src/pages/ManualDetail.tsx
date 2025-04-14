@@ -500,7 +500,13 @@ function SortableSection({
   const { user } = useUser();
   const { attributes, listeners, setNodeRef } = useSortable({ id: section.id });
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      // Requires more deliberate drag attempt - prevents accidental dragging
+      activationConstraint: {
+        delay: 150, // 150ms delay
+        tolerance: 5, // 5px movement tolerance before drag starts
+      }
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -589,7 +595,13 @@ function ManualDetail() {
   const queryClient = useQueryClient();
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      // Requires more deliberate drag attempt - prevents accidental dragging
+      activationConstraint: {
+        delay: 150, // 150ms delay
+        tolerance: 5, // 5px movement tolerance before drag starts
+      }
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
