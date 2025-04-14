@@ -588,7 +588,7 @@ function SortableSection({
   );
 }
 
-function ManualDetail() {
+export function ManualDetail() {
   const { id } = useParams();
   const { user } = useUser();
   const { toast } = useToast();
