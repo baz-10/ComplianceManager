@@ -110,7 +110,12 @@ function AddPolicyDialog({ sectionId, onSubmit }: { sectionId: number; onSubmit:
     <Dialog>
       <DialogTrigger asChild>
         <Button
-          className="mt-4"
+          className="mt-4 relative z-10"
+          onClick={(e) => {
+            // Prevent the click from bubbling up to DnD handlers
+            e.stopPropagation();
+          }}
+          data-no-dnd="true"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Policy
