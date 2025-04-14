@@ -110,7 +110,7 @@ export function useUser() {
   });
 
   const registerMutation = useMutation({
-    mutationFn: async (userData: { username: string; password: string }): Promise<LoginResponse> => {
+    mutationFn: async (userData: { username: string; password: string; role?: string }): Promise<LoginResponse> => {
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
