@@ -519,21 +519,23 @@ function SortableSection({
 
   return (
     <div ref={setNodeRef} {...attributes} {...listeners}>
-      <Card className="group">
-        <CardHeader>
-          <div className="flex items-center gap-2">
+      <Card className="group border-primary/20 shadow-sm hover:shadow-md transition-all duration-200">
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
+          <div className="flex items-center gap-3">
             <span
-              className="cursor-grab opacity-0 group-hover:opacity-100 transition-opacity"
+              className="cursor-grab opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 p-1.5 rounded-full shadow-sm"
               {...attributes}
               {...listeners}
             >
-              <GripVertical className="h-4 w-4 text-muted-foreground" />
+              <GripVertical className="h-4 w-4 text-primary" />
             </span>
-            <span className="text-lg font-semibold text-muted-foreground">
-              {sectionIndex + 1}.
-            </span>
+            <div className="bg-primary/10 rounded-full flex items-center justify-center w-8 h-8 shadow-sm">
+              <span className="text-lg font-semibold text-primary">
+                {sectionIndex + 1}
+              </span>
+            </div>
             <div>
-              <CardTitle>{section.title}</CardTitle>
+              <CardTitle className="text-primary">{section.title}</CardTitle>
               <CardDescription>{section.description}</CardDescription>
             </div>
           </div>
@@ -913,52 +915,100 @@ export function ManualDetail() {
   // Loading and Error States
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="relative w-16 h-16">
+          <Loader2 className="w-16 h-16 animate-spin text-primary/40" />
+          <FileText className="w-6 h-6 text-primary absolute inset-0 m-auto" />
+        </div>
+        <p className="text-muted-foreground animate-pulse">Loading document...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-red-500">
-        Error loading manual: {error instanceof Error ? error.message : String(error)}
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-lg text-center">
+          <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-red-600 mb-2">Error Loading Document</h3>
+          <p className="text-red-500">
+            {error instanceof Error ? error.message : String(error)}
+          </p>
+          <Button 
+            variant="outline" 
+            className="mt-4"
+            onClick={() => window.location.reload()}
+          >
+            Try Again
+          </Button>
+        </div>
       </div>
     );
   }
 
   if (!manual) {
-    return <div>Manual not found</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 max-w-lg text-center">
+          <AlertCircle className="h-10 w-10 text-amber-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-amber-600 mb-2">Manual Not Found</h3>
+          <p className="text-amber-500">
+            The requested document could not be found or may have been deleted.
+          </p>
+          <Link href="/manuals">
+            <Button className="mt-4">
+              Return to Manuals
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   // Render
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/manuals">
-            <Button variant="outline" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <h1 className="text-3xl font-bold tracking-tight">{manual.title}</h1>
+    <div className="space-y-8 pb-10">
+      {/* Header with gradient background */}
+      <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 shadow-sm relative overflow-hidden">
+        <div className="relative z-10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Link href="/manuals">
+                <Button variant="outline" size="icon" className="bg-white/80 backdrop-blur-sm hover:bg-white shadow-sm">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">{manual.title}</h1>
+                <p className="text-muted-foreground mt-1 max-w-2xl">{manual.description}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <ExportDialog manualTitle={manual.title} sections={manual.sections} />
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <ExportDialog manualTitle={manual.title} sections={manual.sections} />
+        {/* Background decorative elements */}
+        <div className="absolute top-0 right-0 -mt-4 -mr-4 opacity-5">
+          <FileText className="h-32 w-32" />
         </div>
       </div>
 
-      <p className="text-muted-foreground">{manual.description}</p>
+      {/* AI Tools Section with Background */}
+      <div className="bg-gradient-to-r from-primary/5 to-background rounded-lg p-4 border border-primary/10">
+        <PolicyAITools />
+      </div>
 
-      <PolicyAITools />
-
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-semibold">Sections</h2>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center border-b pb-4">
+          <div>
+            <h2 className="text-2xl font-semibold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">Document Sections</h2>
+            <p className="text-muted-foreground text-sm mt-1">Organize your content into logical sections</p>
+          </div>
           <Dialog>
             <DialogTrigger asChild>
-              <Button>
-                <FileText className="h-4 w-4 mr-2" />
+              <Button className="shadow-sm">
+                <Plus className="h-4 w-4 mr-2" />
                 Add Section
               </Button>
             </DialogTrigger>
