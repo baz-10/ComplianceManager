@@ -229,6 +229,34 @@ function PolicyContent({
     },
   });
 
+  // Handler functions with stopPropagation to prevent DnD interference
+  const handlePublishClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onUpdatePolicy(policy.id, {
+      title: policy.title,
+      status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT',
+    });
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsEditOpen(true);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsDeleteOpen(true);
+  };
+
+  const handleAcknowledgeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    acknowledgeMutation.mutate(policy.id);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -240,9 +268,11 @@ function PolicyContent({
             <div>
               <CardTitle className="text-base">{policy.title}</CardTitle>
               <CardDescription className="flex items-center gap-2">
-                Status: {policy.status}
+                <span className={`px-2 py-0.5 rounded text-xs ${policy.status === 'LIVE' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                  {policy.status}
+                </span>
                 {policy.isAcknowledged && (
-                  <span className="flex items-center text-green-500">
+                  <span className="flex items-center text-green-600">
                     <CheckCircle className="h-4 w-4 mr-1" />
                     Acknowledged
                   </span>
@@ -252,17 +282,13 @@ function PolicyContent({
           </div>
 
           {canManagePolicy && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 z-10">
               {user?.role === 'ADMIN' && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    onUpdatePolicy(policy.id, {
-                      title: policy.title,
-                      status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT',
-                    });
-                  }}
+                  onClick={handlePublishClick}
+                  className="relative"
                 >
                   {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
                 </Button>
@@ -271,7 +297,8 @@ function PolicyContent({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsEditOpen(true)}
+                onClick={handleEditClick}
+                className="relative"
               >
                 <Edit2 className="h-4 w-4" />
               </Button>
@@ -279,7 +306,8 @@ function PolicyContent({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsDeleteOpen(true)}
+                onClick={handleDeleteClick}
+                className="relative"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -303,7 +331,7 @@ function PolicyContent({
                 </span>
               </div>
               <Button
-                onClick={() => acknowledgeMutation.mutate(policy.id)}
+                onClick={handleAcknowledgeClick}
                 disabled={acknowledgeMutation.isPending}
               >
                 {acknowledgeMutation.isPending ? (
@@ -418,13 +446,18 @@ function SortablePolicy(props: {
   const { user } = useUser();
   const canManagePolicy = user?.role === 'ADMIN' || user?.role === 'EDITOR';
 
+  // Use a separate listener for the handle only, not the entire component
   const {
     attributes,
     listeners,
     setNodeRef,
     transform,
     transition,
-  } = useSortable({ id: props.policy.id });
+  } = useSortable({ 
+    id: props.policy.id,
+    // Only allow dragging via handle
+    disabled: !canManagePolicy
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -432,17 +465,17 @@ function SortablePolicy(props: {
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
-      <div className="mb-4">
-        {canManagePolicy && (
-          <div
-            className="cursor-grab opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center h-6 mb-2"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
-          </div>
-        )}
+    <div ref={setNodeRef} style={style} className="relative mb-4">
+      {canManagePolicy && (
+        <div
+          className="absolute top-0 left-0 right-0 cursor-grab opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center h-6 mb-2 z-10"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
+      )}
+      <div className="pointer-events-auto">
         <PolicyContent {...props} />
       </div>
     </div>
