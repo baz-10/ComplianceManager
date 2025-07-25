@@ -155,6 +155,192 @@ export const AdminController = {
       console.error('Error fetching analytics:', error);
       res.status(500).json({ error: 'Failed to fetch analytics data' });
     }
+  },
+
+  async getAuditTrail(req: Request, res: Response) {
+    try {
+      const { page = 1, limit = 50, entityType, action, severity, userId, startDate, endDate } = req.query;
+      
+      let whereConditions = [];
+      let params: any[] = [];
+      let paramIndex = 1;
+
+      // Build dynamic WHERE clause
+      if (entityType) {
+        whereConditions.push(`entity_type = $${paramIndex++}`);
+        params.push(entityType);
+      }
+      if (action) {
+        whereConditions.push(`action = $${paramIndex++}`);
+        params.push(action);
+      }
+      if (severity) {
+        whereConditions.push(`severity = $${paramIndex++}`);
+        params.push(severity);
+      }
+      if (userId) {
+        whereConditions.push(`user_id = $${paramIndex++}`);
+        params.push(parseInt(userId as string));
+      }
+      if (startDate) {
+        whereConditions.push(`created_at >= $${paramIndex++}`);
+        params.push(startDate);
+      }
+      if (endDate) {
+        whereConditions.push(`created_at <= $${paramIndex++}`);
+        params.push(endDate);
+      }
+
+      const whereClause = whereConditions.length > 0 
+        ? `WHERE ${whereConditions.join(' AND ')}`
+        : '';
+
+      const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+      
+      // Get audit logs with pagination
+      const auditResult = await db.execute(sql.raw(`
+        SELECT 
+          al.id,
+          al.entity_type,
+          al.entity_id,
+          al.action,
+          al.change_details,
+          al.ip_address,
+          al.user_agent,
+          al.severity,
+          al.compliance_flags,
+          al.created_at,
+          u.username,
+          u.role
+        FROM audit_logs al
+        LEFT JOIN users u ON al.user_id = u.id
+        ${whereClause}
+        ORDER BY al.created_at DESC
+        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+      `, [...params, parseInt(limit as string), offset]));
+
+      // Get total count for pagination
+      const countResult = await db.execute(sql.raw(`
+        SELECT COUNT(*) as total
+        FROM audit_logs al
+        ${whereClause}
+      `, params));
+
+      const total = parseInt(countResult.rows[0].total);
+      const totalPages = Math.ceil(total / parseInt(limit as string));
+
+      res.json({
+        auditLogs: auditResult.rows,
+        pagination: {
+          currentPage: parseInt(page as string),
+          totalPages,
+          totalItems: total,
+          hasNext: parseInt(page as string) < totalPages,
+          hasPrev: parseInt(page as string) > 1
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching audit trail:', error);
+      res.status(500).json({ error: 'Failed to fetch audit trail data' });
+    }
+  },
+
+  async getComplianceReport(req: Request, res: Response) {
+    try {
+      const { startDate, endDate } = req.query;
+      
+      // Get compliance overview
+      const complianceOverview = await db.execute(sql`
+        SELECT 
+          COUNT(CASE WHEN severity = 'CRITICAL' THEN 1 END)::int as critical_events,
+          COUNT(CASE WHEN severity = 'HIGH' THEN 1 END)::int as high_events,
+          COUNT(CASE WHEN action = 'EXPORT' THEN 1 END)::int as export_events,
+          COUNT(CASE WHEN action = 'PUBLISH' THEN 1 END)::int as publish_events,
+          COUNT(CASE WHEN action = 'ACKNOWLEDGE' THEN 1 END)::int as acknowledgment_events,
+          COUNT(CASE WHEN 'casa_compliance' = ANY(compliance_flags) THEN 1 END)::int as casa_events
+        FROM audit_logs
+        WHERE created_at >= COALESCE(${startDate}, CURRENT_DATE - INTERVAL '30 days')
+          AND created_at <= COALESCE(${endDate}, CURRENT_DATE + INTERVAL '1 day')
+      `);
+
+      // Get user activity summary
+      const userActivity = await db.execute(sql`
+        SELECT 
+          u.username,
+          u.role,
+          COUNT(al.id)::int as total_actions,
+          COUNT(CASE WHEN al.severity IN ('HIGH', 'CRITICAL') THEN 1 END)::int as high_risk_actions,
+          MAX(al.created_at) as last_activity
+        FROM users u
+        LEFT JOIN audit_logs al ON u.id = al.user_id
+          AND al.created_at >= COALESCE(${startDate}, CURRENT_DATE - INTERVAL '30 days')
+          AND al.created_at <= COALESCE(${endDate}, CURRENT_DATE + INTERVAL '1 day')
+        WHERE u.role != 'ADMIN'
+        GROUP BY u.id, u.username, u.role
+        ORDER BY total_actions DESC
+      `);
+
+      // Get policy compliance status
+      const policyCompliance = await db.execute(sql`
+        SELECT 
+          p.title as policy_title,
+          s.title as section_title,
+          m.title as manual_title,
+          COUNT(DISTINCT u.id)::int as total_users,
+          COUNT(DISTINCT a.user_id)::int as acknowledged_users,
+          ROUND(
+            (COUNT(DISTINCT a.user_id)::float / COUNT(DISTINCT u.id)::float * 100)::numeric, 
+            2
+          ) as compliance_percentage,
+          COUNT(CASE WHEN al.action = 'ACKNOWLEDGE' 
+                     AND al.created_at >= COALESCE(${startDate}, CURRENT_DATE - INTERVAL '30 days')
+                     AND al.created_at <= COALESCE(${endDate}, CURRENT_DATE + INTERVAL '1 day')
+                THEN 1 END)::int as recent_acknowledgments
+        FROM policies p
+        JOIN sections s ON p.section_id = s.id
+        JOIN manuals m ON s.manual_id = m.id
+        LEFT JOIN policy_versions pv ON p.current_version_id = pv.id
+        LEFT JOIN acknowledgements a ON pv.id = a.policy_version_id
+        LEFT JOIN audit_logs al ON pv.id = al.entity_id AND al.entity_type = 'policy_version'
+        CROSS JOIN users u
+        WHERE u.role != 'ADMIN' AND p.status = 'LIVE'
+        GROUP BY p.id, p.title, s.title, m.title
+        ORDER BY compliance_percentage ASC
+      `);
+
+      res.json({
+        overview: complianceOverview.rows[0],
+        userActivity: userActivity.rows,
+        policyCompliance: policyCompliance.rows,
+        reportGenerated: new Date().toISOString(),
+        dateRange: { startDate, endDate }
+      });
+    } catch (error) {
+      console.error('Error generating compliance report:', error);
+      res.status(500).json({ error: 'Failed to generate compliance report' });
+    }
+  },
+
+  async logExportEvent(req: Request, res: Response) {
+    try {
+      const { entityType, entityId, format, details, fileName } = req.body;
+      
+      // Import AuditService dynamically to avoid circular imports
+      const { AuditService } = await import('../services/auditService');
+      
+      await AuditService.logExport(
+        req, 
+        entityType as 'manual' | 'policy', 
+        entityId, 
+        format, 
+        `${details} - File: ${fileName}`
+      );
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error logging export event:', error);
+      res.status(500).json({ error: 'Failed to log export event' });
+    }
   }
 };
 

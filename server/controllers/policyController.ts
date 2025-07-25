@@ -290,6 +290,18 @@ export const PolicyController = {
         })
         .returning();
 
+      // Log acknowledgment for audit trail
+      try {
+        const { AuditService } = await import('../services/auditService');
+        await AuditService.logAcknowledgment(
+          req,
+          policy.currentVersion.id,
+          `Policy "${policy.title}" acknowledged by user ${req.user.username} (version ${policy.currentVersion.versionNumber})`
+        );
+      } catch (auditError) {
+        console.warn('Failed to log acknowledgment:', auditError);
+      }
+
       res.status(201).json(acknowledgement);
     } catch (error) {
       console.error('Failed to acknowledge policy:', error);

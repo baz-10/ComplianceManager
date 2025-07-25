@@ -149,18 +149,35 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err: any, user: User, info: IVerifyOptions) => {
+    passport.authenticate("local", async (err: any, user: User, info: IVerifyOptions) => {
       if (err) {
         return next(err);
       }
 
       if (!user) {
+        // Log failed login attempt
+        try {
+          const { AuditService } = await import('./services/auditService');
+          await AuditService.logAuth(req, 'LOGIN_FAILED', undefined, 
+            `Failed login attempt for username: ${req.body.username}`);
+        } catch (auditError) {
+          console.warn('Failed to log login failure:', auditError);
+        }
         return res.status(400).send(info.message ?? "Login failed");
       }
 
-      req.logIn(user, (err) => {
+      req.logIn(user, async (err) => {
         if (err) {
           return next(err);
+        }
+
+        // Log successful login
+        try {
+          const { AuditService } = await import('./services/auditService');
+          await AuditService.logAuth(req, 'LOGIN', user.id, 
+            `User ${user.username} logged in successfully`);
+        } catch (auditError) {
+          console.warn('Failed to log login success:', auditError);
         }
 
         return res.json({
@@ -171,11 +188,25 @@ export function setupAuth(app: Express) {
     })(req, res, next);
   });
 
-  app.post("/api/logout", (req, res) => {
-    req.logout((err) => {
+  app.post("/api/logout", async (req, res) => {
+    const user = req.user as User;
+    
+    req.logout(async (err) => {
       if (err) {
         return res.status(500).send("Logout failed");
       }
+      
+      // Log logout event
+      if (user) {
+        try {
+          const { AuditService } = await import('./services/auditService');
+          await AuditService.logAuth(req, 'LOGOUT', user.id, 
+            `User ${user.username} logged out`);
+        } catch (auditError) {
+          console.warn('Failed to log logout:', auditError);
+        }
+      }
+      
       res.json({ message: "Logout successful" });
     });
   });

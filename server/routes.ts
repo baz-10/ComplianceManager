@@ -25,6 +25,9 @@ export function registerRoutes(app: Express): Server {
 
   // Admin routes
   app.get('/api/admin/performance', isAdmin, AdminController.getPerformanceMetrics);
+  app.get('/api/admin/audit-trail', isAdmin, AdminController.getAuditTrail);
+  app.get('/api/admin/compliance-report', isAdmin, AdminController.getComplianceReport);
+  app.post('/api/admin/log-export', isAuthenticated, AdminController.logExportEvent);
 
   // AI Policy routes
   app.post('/api/policies/:policyId/suggest', isEditorOrAdmin, AIPolicyController.suggestImprovements);

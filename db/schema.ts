@@ -91,6 +91,52 @@ export const annotations = pgTable("annotations", {
 // Set up the self-referential relation after table definition
 annotations.path = [{ path: ["parentId"], references: () => annotations.id }];
 
+// Enhanced Audit Trail table for CASA compliance
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  entityType: text("entity_type").notNull(), // 'manual', 'section', 'policy', 'policy_version', 'user'
+  entityId: integer("entity_id").notNull(),
+  action: text("action").notNull(), // 'CREATE', 'UPDATE', 'DELETE', 'PUBLISH', 'ACKNOWLEDGE', 'EXPORT', 'LOGIN', 'LOGOUT'
+  previousState: json("previous_state"),
+  newState: json("new_state"),
+  changeDetails: text("change_details"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  sessionId: text("session_id"),
+  severity: text("severity").default("INFO").notNull(), // 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'
+  complianceFlags: json("compliance_flags").$type<string[]>().default([]),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+// Document Signatures table for digital approval
+export const documentSignatures = pgTable("document_signatures", {
+  id: serial("id").primaryKey(),
+  entityType: text("entity_type").notNull(), // 'manual', 'policy_version'
+  entityId: integer("entity_id").notNull(),
+  signerId: integer("signer_id").references(() => users.id).notNull(),
+  signatureType: text("signature_type").notNull(), // 'DRAFT_APPROVAL', 'FINAL_APPROVAL', 'REVIEW'
+  digitalSignature: text("digital_signature").notNull(), // Hash or crypto signature
+  signatureMetadata: json("signature_metadata"), // Certificate info, timestamp, etc.
+  signedAt: timestamp("signed_at").defaultNow().notNull(),
+  validUntil: timestamp("valid_until"),
+  revokedAt: timestamp("revoked_at"),
+  revokedBy: integer("revoked_by").references(() => users.id),
+  revocationReason: text("revocation_reason")
+});
+
+// Policy Approval Workflows
+export const approvalWorkflows = pgTable("approval_workflows", {
+  id: serial("id").primaryKey(),
+  policyVersionId: integer("policy_version_id").references(() => policyVersions.id).notNull(),
+  workflowStep: integer("workflow_step").notNull(), // 1, 2, 3, etc.
+  approverId: integer("approver_id").references(() => users.id).notNull(),
+  status: text("status").notNull(), // 'PENDING', 'APPROVED', 'REJECTED', 'REQUIRES_CHANGES'
+  comments: text("comments"),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   manuals: many(manuals),
@@ -98,7 +144,39 @@ export const usersRelations = relations(users, ({ many }) => ({
   policies: many(policies),
   policyVersions: many(policyVersions),
   acknowledgements: many(acknowledgements),
-  annotations: many(annotations)
+  annotations: many(annotations),
+  auditLogs: many(auditLogs),
+  documentSignatures: many(documentSignatures),
+  approvalWorkflows: many(approvalWorkflows)
+}));
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [auditLogs.userId],
+    references: [users.id]
+  })
+}));
+
+export const documentSignaturesRelations = relations(documentSignatures, ({ one }) => ({
+  signer: one(users, {
+    fields: [documentSignatures.signerId],
+    references: [users.id]
+  }),
+  revokedByUser: one(users, {
+    fields: [documentSignatures.revokedBy],
+    references: [users.id]
+  })
+}));
+
+export const approvalWorkflowsRelations = relations(approvalWorkflows, ({ one }) => ({
+  policyVersion: one(policyVersions, {
+    fields: [approvalWorkflows.policyVersionId],
+    references: [policyVersions.id]
+  }),
+  approver: one(users, {
+    fields: [approvalWorkflows.approverId],
+    references: [users.id]
+  })
 }));
 
 export const manualsRelations = relations(manuals, ({ one, many }) => ({
@@ -215,3 +293,18 @@ export const insertAnnotationSchema = createInsertSchema(annotations);
 export const selectAnnotationSchema = createSelectSchema(annotations);
 export type Annotation = typeof annotations.$inferSelect;
 export type NewAnnotation = typeof annotations.$inferInsert;
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs);
+export const selectAuditLogSchema = createSelectSchema(auditLogs);
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type NewAuditLog = typeof auditLogs.$inferInsert;
+
+export const insertDocumentSignatureSchema = createInsertSchema(documentSignatures);
+export const selectDocumentSignatureSchema = createSelectSchema(documentSignatures);
+export type DocumentSignature = typeof documentSignatures.$inferSelect;
+export type NewDocumentSignature = typeof documentSignatures.$inferInsert;
+
+export const insertApprovalWorkflowSchema = createInsertSchema(approvalWorkflows);
+export const selectApprovalWorkflowSchema = createSelectSchema(approvalWorkflows);
+export type ApprovalWorkflow = typeof approvalWorkflows.$inferSelect;
+export type NewApprovalWorkflow = typeof approvalWorkflows.$inferInsert;

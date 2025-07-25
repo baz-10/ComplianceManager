@@ -7,6 +7,7 @@ import { ManualList } from "./pages/ManualList";
 import { ManualDetail } from "./pages/ManualDetail";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { UserManagement } from "./pages/UserManagement";
+import { ComplianceDashboard } from "./pages/ComplianceDashboard";
 import { AuthPage } from "./pages/AuthPage";
 import { useUser } from "./hooks/use-user";
 
@@ -37,6 +38,7 @@ function App() {
             <>
               <Route path="/admin/dashboard" component={AdminDashboard} />
               <Route path="/admin/users" component={UserManagement} />
+              <Route path="/admin/compliance" component={ComplianceDashboard} />
             </>
           )}
           <Route component={NotFound} />

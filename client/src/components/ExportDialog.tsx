@@ -54,231 +54,203 @@ export function ExportDialog({ manualTitle, sections }: ExportDialogProps) {
 
     try {
       if (format === "pdf") {
-        // Create a temporary div to render the content
-        const tempDiv = document.createElement("div");
-        tempDiv.className = "pdf-export";
-        tempDiv.style.width = "793px"; // A4 width at 96 DPI
-        tempDiv.style.padding = "40px";
-        tempDiv.style.backgroundColor = "#fff";
-        tempDiv.style.color = "#000";
-        tempDiv.style.fontFamily = "Arial, sans-serif";
-        tempDiv.style.position = "absolute";
-        tempDiv.style.left = "-9999px";
-        document.body.appendChild(tempDiv);
+        // Initialize PDF with better settings
+        const pdf = new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: "a4",
+          compress: true
+        });
 
-        // Add the title
-        const titleElement = document.createElement("h1");
-        titleElement.textContent = manualTitle;
-        titleElement.style.fontSize = "24px";
-        titleElement.style.marginBottom = "20px";
-        titleElement.style.color = "#000";
-        titleElement.style.fontWeight = "bold";
-        titleElement.style.textAlign = "center";
-        tempDiv.appendChild(titleElement);
+        // PDF dimensions and styling
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 15;
+        const contentWidth = pageWidth - (margin * 2);
+        
+        let yPos = margin;
+        const lineHeight = 6;
+        const sectionSpacing = 12;
+        const policySpacing = 8;
 
-        try {
-          // Initialize PDF
-          const pdf = new jsPDF({
-            orientation: "portrait",
-            unit: "mm",
-            format: "a4"
+        // Helper function to check for page break
+        const checkPageBreak = (requiredSpace: number) => {
+          if (yPos + requiredSpace > pageHeight - margin) {
+            pdf.addPage();
+            yPos = margin;
+            return true;
+          }
+          return false;
+        };
+
+        // Helper function to add text with word wrapping
+        const addWrappedText = (text: string, fontSize: number, style: 'normal' | 'bold' | 'italic' = 'normal', maxWidth?: number) => {
+          pdf.setFontSize(fontSize);
+          pdf.setFont("helvetica", style);
+          
+          const width = maxWidth || contentWidth;
+          const lines = pdf.splitTextToSize(text, width);
+          
+          checkPageBreak(lines.length * lineHeight + 5);
+          
+          lines.forEach((line: string) => {
+            pdf.text(line, margin, yPos);
+            yPos += lineHeight;
           });
+          
+          return lines.length * lineHeight;
+        };
 
-          // PDF dimensions (A4)
-          const pageWidth = pdf.internal.pageSize.getWidth();
-          const pageHeight = pdf.internal.pageSize.getHeight();
-          const margin = 10; // mm
+        // Helper function to process HTML content and convert to plain text
+        const htmlToText = (html: string): string => {
+          const tempDiv = document.createElement("div");
+          tempDiv.innerHTML = html;
+          
+          // Handle common HTML elements
+          const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6');
+          headings.forEach(heading => {
+            heading.textContent = `\n${heading.textContent}\n`;
+          });
+          
+          const paragraphs = tempDiv.querySelectorAll('p');
+          paragraphs.forEach(p => {
+            p.textContent = `${p.textContent}\n\n`;
+          });
+          
+          const lists = tempDiv.querySelectorAll('ul, ol');
+          lists.forEach(list => {
+            const items = list.querySelectorAll('li');
+            items.forEach((item, index) => {
+              const prefix = list.tagName === 'OL' ? `${index + 1}. ` : '• ';
+              item.textContent = `${prefix}${item.textContent}\n`;
+            });
+          });
+          
+          // Clean up extra whitespace
+          return tempDiv.textContent?.replace(/\n\s*\n\s*\n/g, '\n\n').trim() || '';
+        };
 
-          // Keep track of current Y position
-          let yPos = margin;
-          let currentPage = 1;
-
-          // Add title to PDF
-          pdf.setFontSize(24);
+        // Add header with metadata
+        const addHeader = () => {
+          pdf.setFontSize(18);
           pdf.setFont("helvetica", "bold");
-          pdf.text(manualTitle, pageWidth / 2, yPos + 10, { align: "center" });
-          yPos += 20;
+          pdf.text(manualTitle, pageWidth / 2, yPos + 8, { align: "center" });
+          yPos += 15;
+          
+          // Add generation date and metadata
+          pdf.setFontSize(10);
+          pdf.setFont("helvetica", "normal");
+          const now = new Date();
+          const dateStr = `Generated: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+          pdf.text(dateStr, pageWidth / 2, yPos, { align: "center" });
+          yPos += 10;
+          
+          // Add separator line
+          pdf.setLineWidth(0.5);
+          pdf.line(margin, yPos, pageWidth - margin, yPos);
+          yPos += sectionSpacing;
+        };
 
-          // Process each section
-          for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
-            const section = sections[sectionIndex];
+        addHeader();
 
-            if (!includeAllSections && section.policies.length === 0) {
-              continue;
-            }
+        // Process each section with improved formatting
+        for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+          const section = sections[sectionIndex];
 
-            // Check if we need a page break before the section
-            if (yPos > pageHeight - 50) {
-              pdf.addPage();
-              currentPage++;
-              yPos = margin;
-            }
+          if (!includeAllSections && section.policies.length === 0) {
+            continue;
+          }
 
-            // Add section header
-            pdf.setFontSize(16);
-            pdf.setFont("helvetica", "bold");
-            const sectionTitle = `${sectionIndex + 1}. ${section.title}`;
-            pdf.text(sectionTitle, margin, yPos + 8);
-            yPos += 15;
+          // Add section header
+          checkPageBreak(25);
+          yPos += sectionSpacing / 2;
+          
+          const sectionTitle = `${sectionIndex + 1}. ${section.title}`;
+          addWrappedText(sectionTitle, 14, 'bold');
+          yPos += 2;
 
-            // Add section description if needed
-            if (includeDescription && section.description) {
-              if (yPos > pageHeight - 30) {
-                pdf.addPage();
-                currentPage++;
-                yPos = margin;
-              }
+          // Add section description if included
+          if (includeDescription && section.description) {
+            addWrappedText(section.description, 10, 'italic');
+            yPos += policySpacing / 2;
+          }
 
-              pdf.setFontSize(11);
-              pdf.setFont("helvetica", "italic");
+          // Process each policy in the section
+          for (let policyIndex = 0; policyIndex < section.policies.length; policyIndex++) {
+            const policy = section.policies[policyIndex];
 
-              // Handle multiline descriptions
-              const splitDesc = pdf.splitTextToSize(section.description, pageWidth - (margin * 2));
-              pdf.text(splitDesc, margin, yPos + 5);
-              yPos += (10 * splitDesc.length);
-            }
+            // Add policy title with consistent numbering
+            checkPageBreak(20);
+            yPos += policySpacing / 2;
+            
+            const policyTitle = `${sectionIndex + 1}.${policyIndex + 1} ${policy.title}`;
+            addWrappedText(policyTitle, 12, 'bold');
+            yPos += 3;
 
-            // Process each policy
-            for (let policyIndex = 0; policyIndex < section.policies.length; policyIndex++) {
-              const policy = section.policies[policyIndex];
-
-              // Check if we need a page break before the policy
-              if (yPos > pageHeight - 40) {
-                pdf.addPage();
-                currentPage++;
-                yPos = margin;
-              }
-
-              // Add policy title
-              pdf.setFontSize(13);
-              pdf.setFont("helvetica", "bold");
-              const policyTitle = `${sectionIndex + 1}.${policyIndex + 1} ${policy.title}`;
-              pdf.text(policyTitle, margin + 5, yPos + 8);
-              yPos += 15;
-
-              if (policy.currentVersion) {
-                // Create a temporary element to render the HTML content
-                const contentDiv = document.createElement("div");
-                contentDiv.innerHTML = policy.currentVersion.bodyContent;
-                contentDiv.style.width = (pageWidth - (margin * 2)) + "mm";
-                contentDiv.style.fontSize = "11px";
-                contentDiv.style.fontFamily = "Arial, sans-serif";
-                contentDiv.style.color = "#000";
-
-                // Process any images to ensure they fit
-                const images = contentDiv.querySelectorAll("img");
-                images.forEach(img => {
-                  img.style.maxWidth = "100%";
-                  img.style.height = "auto";
+            // Add policy content if available
+            if (policy.currentVersion && policy.currentVersion.bodyContent) {
+              const cleanContent = htmlToText(policy.currentVersion.bodyContent);
+              if (cleanContent.trim()) {
+                // Indent policy content slightly
+                pdf.setFontSize(10);
+                pdf.setFont("helvetica", "normal");
+                
+                const contentLines = pdf.splitTextToSize(cleanContent, contentWidth - 10);
+                
+                contentLines.forEach((line: string) => {
+                  checkPageBreak(lineHeight + 2);
+                  pdf.text(line, margin + 5, yPos);
+                  yPos += lineHeight;
                 });
-
-                tempDiv.appendChild(contentDiv);
-
-                try {
-                  // Convert the HTML content to an image
-                  const canvas = await html2canvas(contentDiv, {
-                    scale: 2,
-                    logging: false,
-                    useCORS: true
-                  });
-
-                  // Remove from DOM after capturing
-                  tempDiv.removeChild(contentDiv);
-
-                  // Calculate scaling to fit width
-                  const imgWidth = pageWidth - (margin * 2);
-                  const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-                  // Handle page breaking for content
-                  let remainingHeight = imgHeight;
-                  let offsetY = 0;
-
-                  while (remainingHeight > 0) {
-                    // How much can fit on this page
-                    const availableHeight = pageHeight - yPos - margin;
-                    const heightToRender = Math.min(availableHeight, remainingHeight);
-
-                    if (heightToRender < 5) { // If we can't even fit a tiny bit, go to next page
-                      pdf.addPage();
-                      currentPage++;
-                      yPos = margin;
-                      continue;
-                    }
-
-                    // Calculate positioning for cropping
-                    const scaleFactor = imgWidth / canvas.width;
-                    const sourceHeight = heightToRender / scaleFactor;
-
-                    // Add portion of the image to the PDF
-                    pdf.addImage(
-                      canvas.toDataURL("image/jpeg", 0.95),
-                      "JPEG",
-                      margin,
-                      yPos,
-                      imgWidth,
-                      heightToRender,
-                      undefined,
-                      "FAST",
-                      0,
-                      offsetY / scaleFactor,
-                      canvas.width,
-                      sourceHeight
-                    );
-
-                    // Update tracking variables
-                    offsetY += sourceHeight;
-                    remainingHeight -= heightToRender;
-                    yPos += heightToRender;
-
-                    // If there's more content and we've reached the end of the page, add a new page
-                    if (remainingHeight > 0) {
-                      pdf.addPage();
-                      currentPage++;
-                      yPos = margin;
-                    }
-                  }
-
-                  // Add space after policy content
-                  yPos += 10;
-
-                } catch (err) {
-                  console.error("Error rendering policy content:", err);
-                  // If rendering fails, add a placeholder message
-                  pdf.setFontSize(10);
-                  pdf.setFont("helvetica", "italic");
-                  pdf.text("(Content could not be rendered)", margin + 5, yPos + 5);
-                  yPos += 10;
-                }
               }
-
-              // Add space between policies
-              yPos += 10;
             }
 
-            // Add space between sections
-            yPos += 15;
+            yPos += policySpacing;
           }
 
-          // Add page numbers
-          const totalPages = pdf.getNumberOfPages();
-          for (let i = 1; i <= totalPages; i++) {
-            pdf.setPage(i);
-            pdf.setFontSize(10);
-            pdf.setFont("helvetica", "italic");
-            pdf.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - margin);
-          }
-
-          // Save PDF
-          pdf.save(`${manualTitle}.pdf`);
-
-          toast({
-            title: "Export Successful",
-            description: `${manualTitle} has been exported as PDF (${totalPages} pages)`,
-          });
-        } finally {
-          // Clean up
-          document.body.removeChild(tempDiv);
+          yPos += sectionSpacing;
         }
+
+        // Add page numbers and footer to all pages
+        const totalPages = pdf.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+          pdf.setPage(i);
+          
+          // Page number
+          pdf.setFontSize(9);
+          pdf.setFont("helvetica", "normal");
+          pdf.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - margin, { align: "right" });
+          
+          // Footer with manual title on left
+          pdf.text(manualTitle, margin, pageHeight - margin);
+        }
+
+        // Save PDF with timestamp
+        const timestamp = new Date().toISOString().split('T')[0];
+        pdf.save(`${manualTitle}_${timestamp}.pdf`);
+
+        // Log export event for audit trail
+        try {
+          await fetch('/api/admin/log-export', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              entityType: 'manual',
+              entityId: sections[0]?.id || 0, // Use first section's manual ID
+              format: 'PDF',
+              details: `Manual exported with ${totalPages} pages, ${sections.length} sections`,
+              fileName: `${manualTitle}_${timestamp}.pdf`
+            })
+          });
+        } catch (error) {
+          console.warn('Failed to log export event:', error);
+        }
+
+        toast({
+          title: "Export Successful",
+          description: `${manualTitle} exported as PDF (${totalPages} pages) with improved formatting`,
+        });
       } else if (format === "html") {
         // HTML export - using original code
         let html = `
@@ -335,6 +307,24 @@ export function ExportDialog({ manualTitle, sections }: ExportDialogProps) {
         a.download = `${manualTitle}.html`;
         a.click();
         URL.revokeObjectURL(url);
+
+        // Log export event for audit trail
+        try {
+          await fetch('/api/admin/log-export', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              entityType: 'manual',
+              entityId: sections[0]?.id || 0,
+              format: 'HTML',
+              details: `Manual exported as HTML with ${sections.length} sections`,
+              fileName: `${manualTitle}.html`
+            })
+          });
+        } catch (error) {
+          console.warn('Failed to log export event:', error);
+        }
 
         toast({
           title: "Export Successful",
