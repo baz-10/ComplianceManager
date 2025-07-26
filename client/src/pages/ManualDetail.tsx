@@ -916,6 +916,8 @@ export function ManualDetail() {
       return response.json();
     },
     onSuccess: (data) => {
+      // Invalidate the manuals list cache to reflect the archive
+      queryClient.invalidateQueries({ queryKey: ['/api/manuals'] });
       toast({
         title: "Manual Archived",
         description: `"${manual?.title}" has been archived. It will be permanently deleted after 30 days.`,
