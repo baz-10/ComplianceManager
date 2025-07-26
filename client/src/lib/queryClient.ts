@@ -1,4 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
+import { handleQueryError } from "@/utils/errorHandler";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -13,7 +14,15 @@ export const queryClient = new QueryClient({
             return null;
           }
 
-          throw new Error(await res.text());
+          // Try to parse as JSON error response
+          let errorData;
+          try {
+            errorData = await res.json();
+          } catch {
+            errorData = { error: { message: await res.text(), code: 'UNKNOWN_ERROR' } };
+          }
+
+          throw errorData;
         }
 
         return res.json();
@@ -22,6 +31,10 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       staleTime: Infinity,
       retry: false,
+      onError: handleQueryError,
+    },
+    mutations: {
+      onError: handleQueryError,
     },
   },
 });

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Activity, BookOpen, Home, LogOut, Users, FileText, CheckCircle, Shield } from "lucide-react";
+import { Activity, BookOpen, Home, LogOut, Users, FileText, CheckCircle, Shield, Archive } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -18,7 +18,8 @@ export function Navigation() {
   const adminItems = [
     { href: "/admin/dashboard", label: "Analytics", icon: Activity },
     { href: "/admin/users", label: "User Management", icon: Users },
-    { href: "/admin/compliance", label: "CASA Compliance", icon: Shield }
+    { href: "/admin/compliance", label: "CASA Compliance", icon: Shield },
+    { href: "/admin/archived-manuals", label: "Archived", icon: Archive }
   ];
 
   const handleLogout = async () => {

@@ -8,6 +8,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUser } from "@/hooks/use-user";
 import { FileText, CheckCircle, Lock, Mail } from "lucide-react";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { showErrorToast } from "@/utils/errorHandler";
 
 const authSchema = z.object({
   username: z.string().email("Username must be a valid email"),
@@ -18,6 +20,7 @@ type AuthForm = z.infer<typeof authSchema>;
 
 export function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
+  const [error, setError] = useState<any>(null);
   const { login, register } = useUser();
 
   const form = useForm<AuthForm>({
@@ -29,6 +32,7 @@ export function AuthPage() {
   });
 
   const onSubmit = async (data: AuthForm) => {
+    setError(null);
     try {
       if (isLogin) {
         await login(data);
@@ -38,8 +42,9 @@ export function AuthPage() {
           role: "READER" // Explicitly set role for new registrations
         });
       }
-    } catch (error) {
-      // Error handling is done in the useUser hook
+    } catch (error: any) {
+      setError(error);
+      showErrorToast(error, isLogin ? "Login Failed" : "Registration Failed");
     }
   };
 
@@ -64,6 +69,13 @@ export function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {error && (
+              <ErrorDisplay 
+                error={error} 
+                className="mb-4"
+                onRetry={() => form.handleSubmit(onSubmit)()}
+              />
+            )}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField

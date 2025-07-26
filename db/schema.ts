@@ -25,7 +25,12 @@ export const manuals = pgTable("manuals", {
   status: Status("status").default("DRAFT").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  createdById: integer("created_by_id").references(() => users.id).notNull()
+  createdById: integer("created_by_id").references(() => users.id).notNull(),
+  // Soft delete fields for 30-day archive
+  archivedAt: timestamp("archived_at"),
+  archivedById: integer("archived_by_id").references(() => users.id),
+  archiveReason: text("archive_reason"),
+  permanentlyDeletedAt: timestamp("permanently_deleted_at")
 });
 
 // Sections table

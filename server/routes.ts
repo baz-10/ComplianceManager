@@ -38,7 +38,10 @@ export function registerRoutes(app: Express): Server {
   app.post('/api/manuals', isEditorOrAdmin, ManualController.create);
   app.get('/api/manuals/:id', isAuthenticated, ManualController.getById);
   app.put('/api/manuals/:id', isEditorOrAdmin, ManualController.update);
-  app.delete('/api/manuals/:id', isAdmin, ManualController.delete);
+  app.post('/api/manuals/:id/archive', isAdmin, ManualController.archive);
+  app.post('/api/manuals/:id/restore', isAdmin, ManualController.restore);
+  app.get('/api/manuals/archived/list', isAdmin, ManualController.listArchived);
+  app.delete('/api/manuals/:id', isAdmin, ManualController.permanentlyDelete);
 
   // Section routes
   app.get('/api/manuals/:manualId/sections', isAuthenticated, SectionController.list);

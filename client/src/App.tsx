@@ -1,6 +1,7 @@
 import { Switch, Route } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Navigation } from "./components/Navigation";
 import { Home } from "./pages/Home";
 import { ManualList } from "./pages/ManualList";
@@ -8,6 +9,7 @@ import { ManualDetail } from "./pages/ManualDetail";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { UserManagement } from "./pages/UserManagement";
 import { ComplianceDashboard } from "./pages/ComplianceDashboard";
+import { ArchivedManuals } from "./pages/ArchivedManuals";
 import { AuthPage } from "./pages/AuthPage";
 import { useUser } from "./hooks/use-user";
 
@@ -27,24 +29,27 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
-      <main className="container mx-auto px-4 py-8">
-        <Switch>
-          <Route path="/" component={Home} />
-          <Route path="/manuals" component={ManualList} />
-          <Route path="/manuals/:id" component={ManualDetail} />
-          {user?.role === 'ADMIN' && (
-            <>
-              <Route path="/admin/dashboard" component={AdminDashboard} />
-              <Route path="/admin/users" component={UserManagement} />
-              <Route path="/admin/compliance" component={ComplianceDashboard} />
-            </>
-          )}
-          <Route component={NotFound} />
-        </Switch>
-      </main>
-    </div>
+    <ErrorBoundary>
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <Switch>
+            <Route path="/" component={Home} />
+            <Route path="/manuals" component={ManualList} />
+            <Route path="/manuals/:id" component={ManualDetail} />
+            {user?.role === 'ADMIN' && (
+              <>
+                <Route path="/admin/dashboard" component={AdminDashboard} />
+                <Route path="/admin/users" component={UserManagement} />
+                <Route path="/admin/compliance" component={ComplianceDashboard} />
+                <Route path="/admin/archived-manuals" component={ArchivedManuals} />
+              </>
+            )}
+            <Route component={NotFound} />
+          </Switch>
+        </main>
+      </div>
+    </ErrorBoundary>
   );
 }
 

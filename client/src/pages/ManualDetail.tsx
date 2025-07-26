@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, ArrowLeft, Plus, GripVertical, Loader2, Edit2, Trash2, CheckCircle, AlertCircle } from "lucide-react";
+import { FileText, ArrowLeft, Plus, GripVertical, Loader2, Edit2, Trash2, CheckCircle, AlertCircle, Archive } from "lucide-react";
 import { Link } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
@@ -600,6 +600,9 @@ export function ManualDetail() {
   const { user } = useUser();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [_, navigate] = useLocation();
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [archiveReason, setArchiveReason] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -896,6 +899,42 @@ export function ManualDetail() {
     },
   });
 
+  const archiveManual = useMutation({
+    mutationFn: async ({ manualId, reason }: { manualId: number; reason: string }) => {
+      const response = await fetch(`/api/manuals/${manualId}/archive`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Manual Archived",
+        description: `"${manual?.title}" has been archived. It will be permanently deleted after 30 days.`,
+        duration: 5000,
+      });
+      setIsArchiveOpen(false);
+      setArchiveReason("");
+      navigate("/manuals");
+    },
+    onError: (error) => {
+      toast({
+        title: "Archive Failed",
+        description: error instanceof Error ? error.message : "Failed to archive manual",
+        variant: "destructive",
+        duration: 7000,
+      });
+    },
+  });
+
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
 
@@ -985,6 +1024,66 @@ export function ManualDetail() {
             </div>
             <div className="flex items-center gap-2">
               <ExportDialog manualTitle={manual.title} sections={manual.sections} />
+              {user?.role === 'ADMIN' && (
+                <AlertDialog open={isArchiveOpen} onOpenChange={setIsArchiveOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="bg-white/80 backdrop-blur-sm hover:bg-white shadow-sm">
+                      <Archive className="h-4 w-4 mr-2" />
+                      Archive Manual
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Archive Manual</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to archive "{manual.title}"? The manual will be kept for 30 days before permanent deletion.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Reason for archiving (required)</label>
+                        <Textarea
+                          value={archiveReason}
+                          onChange={(e) => setArchiveReason(e.target.value)}
+                          placeholder="Please provide a reason for archiving this manual..."
+                          className="min-h-[100px]"
+                        />
+                      </div>
+                      <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                        <p className="text-sm text-amber-800">
+                          <strong>Note:</strong> After archiving, this manual will be:
+                        </p>
+                        <ul className="text-sm text-amber-700 mt-2 space-y-1 list-disc list-inside">
+                          <li>Hidden from the main manual list</li>
+                          <li>Available in the archive for 30 days</li>
+                          <li>Permanently deleted after 30 days</li>
+                          <li>Restorable by admins during the 30-day period</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => {
+                          if (archiveReason.trim()) {
+                            archiveManual.mutate({ manualId: Number(id), reason: archiveReason });
+                          } else {
+                            toast({
+                              title: "Archive reason required",
+                              description: "Please provide a reason for archiving this manual.",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        disabled={!archiveReason.trim() || archiveManual.isPending}
+                        className="bg-amber-600 text-white hover:bg-amber-700"
+                      >
+                        {archiveManual.isPending ? "Archiving..." : "Archive Manual"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           </div>
         </div>

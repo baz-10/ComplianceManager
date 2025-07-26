@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
 import { db } from '@db';
-import { policies, policyVersions, acknowledgements, type Policy } from '@db/schema';
+import { policies, policyVersions, acknowledgements, annotations, type Policy, type User } from '@db/schema';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
+import { ApiError, sendErrorResponse } from '../utils/errorHandler';
+import { AuditService } from '../services/auditService';
 
 const createPolicySchema = z.object({
   policy: z.object({
@@ -39,7 +41,7 @@ export const PolicyController = {
       res.json(allPolicies);
     } catch (error) {
       console.error('Failed to fetch policies:', error);
-      res.status(500).json({ error: 'Failed to fetch policies' });
+      sendErrorResponse(res, error);
     }
   },
 
@@ -49,11 +51,8 @@ export const PolicyController = {
 
       const result = createPolicySchema.safeParse(req.body);
       if (!result.success) {
-        console.error('Policy validation failed:', result.error.issues);
-        return res.status(400).json({
-          error: 'Invalid input',
-          details: result.error.issues
-        });
+        console.error('Policy validation failed:', result.error);
+        return sendErrorResponse(res, result.error);
       }
 
       const { policy: policyData, version: versionData } = result.data;
@@ -99,7 +98,7 @@ export const PolicyController = {
       });
     } catch (error) {
       console.error('Failed to create policy:', error);
-      res.status(500).json({ error: 'Failed to create policy' });
+      sendErrorResponse(res, error);
     }
   },
 
@@ -115,13 +114,13 @@ export const PolicyController = {
       });
 
       if (!policy) {
-        return res.status(404).json({ error: 'Policy not found' });
+        throw new ApiError('Policy not found', 404, 'NOT_FOUND');
       }
 
       res.json(policy);
     } catch (error) {
       console.error('Failed to fetch policy:', error);
-      res.status(500).json({ error: 'Failed to fetch policy' });
+      sendErrorResponse(res, error);
     }
   },
 
@@ -136,7 +135,7 @@ export const PolicyController = {
       });
 
       if (!policy) {
-        return res.status(404).json({ error: 'Policy not found' });
+        throw new ApiError('Policy not found', 404, 'NOT_FOUND');
       }
 
       const newVersionNumber = policy.versions.length + 1;
@@ -157,7 +156,7 @@ export const PolicyController = {
       res.status(201).json(version);
     } catch (error) {
       console.error('Failed to create policy version:', error);
-      res.status(500).json({ error: 'Failed to create policy version' });
+      sendErrorResponse(res, error);
     }
   },
 
@@ -167,10 +166,7 @@ export const PolicyController = {
       const result = updatePolicySchema.safeParse(req.body);
 
       if (!result.success) {
-        return res.status(400).json({
-          error: 'Invalid input',
-          details: result.error.issues
-        });
+        return sendErrorResponse(res, result.error);
       }
 
       const [updatedPolicy] = await db
@@ -184,13 +180,13 @@ export const PolicyController = {
         .returning();
 
       if (!updatedPolicy) {
-        return res.status(404).json({ error: 'Policy not found' });
+        throw new ApiError('Policy not found', 404, 'NOT_FOUND');
       }
 
       res.json(updatedPolicy);
     } catch (error) {
       console.error('Failed to update policy:', error);
-      res.status(500).json({ error: 'Failed to update policy' });
+      sendErrorResponse(res, error);
     }
   },
 
