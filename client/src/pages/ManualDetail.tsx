@@ -17,7 +17,6 @@ import { useToast } from "@/hooks/use-toast";
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -25,7 +24,6 @@ import {
 import {
   arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
@@ -494,6 +492,7 @@ function SortableSection({
   onUpdatePolicy,
   onDeletePolicy,
   onCreatePolicy,
+  onDeleteSection,
 }: {
   section: Section;
   sectionIndex: number;
@@ -501,9 +500,12 @@ function SortableSection({
   onUpdatePolicy: (policyId: number, data: { title: string; bodyContent?: string; status?: "DRAFT" | "LIVE" }) => void;
   onDeletePolicy: (policyId: number) => void;
   onCreatePolicy: (sectionId: number, data: CreatePolicyForm) => void;
+  onDeleteSection: (sectionId: number) => void;
 }) {
   const { user } = useUser();
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const { attributes, listeners, setNodeRef } = useSortable({ id: section.id });
+  // Only use pointer sensor to avoid keyboard conflicts with input fields
   const sensors = useSensors(
     useSensor(PointerSensor, {
       // Requires more deliberate drag attempt - prevents accidental dragging
@@ -511,10 +513,9 @@ function SortableSection({
         delay: 150, // 150ms delay
         tolerance: 5, // 5px movement tolerance before drag starts
       }
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
     })
+    // Temporarily disabled KeyboardSensor to fix spacebar input issue
+    // TODO: Re-enable with proper input field exclusion
   );
 
   return (
@@ -534,10 +535,23 @@ function SortableSection({
                 {sectionIndex + 1}
               </span>
             </div>
-            <div>
+            <div className="flex-1">
               <CardTitle className="text-primary">{section.title}</CardTitle>
               <CardDescription>{section.description}</CardDescription>
             </div>
+            {user?.role === 'ADMIN' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsDeleteOpen(true);
+                }}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -591,6 +605,29 @@ function SortableSection({
           />
         </CardContent>
       </Card>
+      
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Section</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{section.title}"? This will also delete all policies within this section. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                onDeleteSection(section.id);
+                setIsDeleteOpen(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Section
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -604,6 +641,7 @@ export function ManualDetail() {
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [archiveReason, setArchiveReason] = useState("");
 
+  // Only use pointer sensor to avoid keyboard conflicts with input fields
   const sensors = useSensors(
     useSensor(PointerSensor, {
       // Requires more deliberate drag attempt - prevents accidental dragging
@@ -611,10 +649,9 @@ export function ManualDetail() {
         delay: 150, // 150ms delay
         tolerance: 5, // 5px movement tolerance before drag starts
       }
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
     })
+    // Temporarily disabled KeyboardSensor to fix spacebar input issue
+    // TODO: Re-enable with proper input field exclusion
   );
 
   // Initialize form
@@ -829,6 +866,37 @@ export function ManualDetail() {
       toast({
         title: "Delete Failed",
         description: error instanceof Error ? error.message : "Failed to delete policy",
+        variant: "destructive",
+        duration: 7000,
+      });
+    },
+  });
+
+  const deleteSection = useMutation({
+    mutationFn: async (sectionId: number) => {
+      const response = await fetch(`/api/sections/${sectionId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
+      toast({
+        title: "Section Deleted",
+        description: "The section and all its policies have been successfully deleted",
+        duration: 5000,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Delete Failed",
+        description: error instanceof Error ? error.message : "Failed to delete section",
         variant: "destructive",
         duration: 7000,
       });
@@ -1180,6 +1248,9 @@ export function ManualDetail() {
                   }}
                   onDeletePolicy={(policyId) => {
                     deletePolicy.mutate(policyId);
+                  }}
+                  onDeleteSection={(sectionId) => {
+                    deleteSection.mutate(sectionId);
                   }}
                   onCreatePolicy={(sectionId, formData) => {
                     createPolicy.mutate({ sectionId, formData });

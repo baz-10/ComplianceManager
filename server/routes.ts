@@ -8,6 +8,7 @@ import { AnnotationController } from "./controllers/annotationController";
 import { AdminController, trackDatabaseQueries } from "./controllers/adminController";
 import { AIPolicyController } from "./controllers/aiPolicyController";
 import { UserController } from "./controllers/userController";
+import { UploadController, upload } from "./controllers/uploadController";
 import { isAdmin, isEditorOrAdmin, isAuthenticated } from "./middleware/roleMiddleware";
 
 export function registerRoutes(app: Express): Server {
@@ -66,6 +67,10 @@ export function registerRoutes(app: Express): Server {
   app.post('/api/annotations', isAuthenticated, AnnotationController.create);
   app.post('/api/annotations/:annotationId/reply', isAuthenticated, AnnotationController.reply);
   app.delete('/api/annotations/:id', isAuthenticated, AnnotationController.delete);
+
+  // Upload routes
+  app.post('/api/upload/image', isEditorOrAdmin, upload.single('image'), UploadController.uploadImage);
+  app.delete('/api/upload/image/:filename', isEditorOrAdmin, UploadController.deleteImage);
 
   const httpServer = createServer(app);
   return httpServer;

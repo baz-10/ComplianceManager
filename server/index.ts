@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { db, checkDatabaseConnection } from "@db";
@@ -10,6 +11,9 @@ const app = express();
 function setupMiddleware() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
+  
+  // Serve uploaded images
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // Add logging middleware
   app.use((req, res, next) => {
