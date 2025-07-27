@@ -12,17 +12,20 @@ declare module 'express-serve-static-core' {
 export const AdminController = {
   async getPerformanceMetrics(_req: Request, res: Response) {
     try {
-      // Fetch total counts
+      // Fetch total counts (excluding policies from archived manuals)
       const totalStatsResult = await db.execute(sql`
         SELECT 
-          (SELECT COUNT(*) FROM policies)::int as total_policies,
+          (SELECT COUNT(*) FROM policies p
+           JOIN sections s ON s.id = p.section_id
+           JOIN manuals m ON m.id = s.manual_id
+           WHERE m.archived_at IS NULL)::int as total_policies,
           (SELECT COUNT(*) FROM users WHERE role != 'ADMIN')::int as total_users,
           (SELECT COUNT(*) FROM acknowledgements)::int as total_acknowledgements,
           (SELECT COUNT(*) FROM policy_versions)::int as total_versions
       `);
       const totalStats = totalStatsResult.rows[0];
 
-      // Get compliance stats by user
+      // Get compliance stats by user (excluding policies from archived manuals)
       const userComplianceResult = await db.execute(sql`
         WITH required_policies AS (
           SELECT 
@@ -32,9 +35,11 @@ export const AdminController = {
             COUNT(DISTINCT a.id)::int as total_acknowledged
           FROM users u
           CROSS JOIN policies p
+          JOIN sections s ON s.id = p.section_id
+          JOIN manuals m ON m.id = s.manual_id
           LEFT JOIN policy_versions pv ON pv.policy_id = p.id AND pv.id = p.current_version_id
           LEFT JOIN acknowledgements a ON a.policy_version_id = pv.id AND a.user_id = u.id
-          WHERE u.role != 'ADMIN'
+          WHERE u.role != 'ADMIN' AND m.archived_at IS NULL
           GROUP BY u.id, u.username
         )
         SELECT 
@@ -52,7 +57,7 @@ export const AdminController = {
       `);
       const userCompliance = userComplianceResult.rows;
 
-      // Get policies needing attention
+      // Get policies needing attention (excluding policies from archived manuals)
       const policiesNeedingAttentionResult = await db.execute(sql`
         SELECT 
           p.id,
@@ -67,6 +72,7 @@ export const AdminController = {
         LEFT JOIN acknowledgements a ON a.policy_version_id = pv.id
         LEFT JOIN sections s ON p.section_id = s.id
         LEFT JOIN manuals m ON s.manual_id = m.id
+        WHERE m.archived_at IS NULL
         GROUP BY p.id, p.title, s.title, m.title
         ORDER BY completion_rate ASC
         LIMIT 5
