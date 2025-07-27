@@ -880,7 +880,18 @@ export function ManualDetail() {
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        try {
+          const errorData = await response.json();
+          // Handle both simple { error: string } and nested { error: { message: string } } formats
+          const errorMessage = typeof errorData.error === 'string' 
+            ? errorData.error 
+            : errorData.error?.message || 'Failed to delete section';
+          throw new Error(errorMessage);
+        } catch (parseError) {
+          // If JSON parsing fails, try to get text
+          const errorText = await response.text();
+          throw new Error(errorText || 'Failed to delete section');
+        }
       }
 
       return response.json();
