@@ -12,6 +12,10 @@ const updateUserSchema = z.object({
   role: z.enum(["ADMIN", "EDITOR", "READER"]),
 });
 
+const resetPasswordSchema = z.object({
+  newPassword: z.string().min(6, "Password must be at least 6 characters"),
+});
+
 const createUserSchema = z.object({
   username: z.string().email("Username must be a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
@@ -145,6 +149,57 @@ export const UserController = {
     } catch (error) {
       console.error('Error removing user:', error);
       res.status(500).json({ error: 'Failed to remove user' });
+    }
+  },
+
+  async resetPassword(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const result = resetPasswordSchema.safeParse(req.body);
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error.message });
+      }
+
+      // Check if user exists
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, parseInt(userId)))
+        .limit(1);
+
+      if (!existingUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Hash the new password
+      const hashedPassword = await crypto.hash(result.data.newPassword);
+
+      // Update the user's password
+      const [updatedUser] = await db
+        .update(users)
+        .set({ 
+          password: hashedPassword,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, parseInt(userId)))
+        .returning();
+
+      // Import AuditService to log the password reset
+      const { AuditService } = await import('../services/auditService');
+      await AuditService.logAdminAction(
+        req,
+        'user',
+        parseInt(userId),
+        'PASSWORD_RESET',
+        `Password reset for user: ${existingUser.username}`,
+        'HIGH'
+      );
+
+      res.json({ message: 'Password reset successfully' });
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      res.status(500).json({ error: 'Failed to reset password' });
     }
   }
 };

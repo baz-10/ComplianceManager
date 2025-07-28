@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, UserCog, Trash2, UserPlus } from "lucide-react";
+import { Loader2, UserCog, Trash2, UserPlus, Key } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { useState } from "react";
 import { z } from "zod";
@@ -57,6 +57,11 @@ export function UserManagement() {
     username: "",
     password: "",
     role: "READER" as const,
+  });
+  const [resetPasswordData, setResetPasswordData] = useState({
+    userId: 0,
+    newPassword: "",
+    showDialog: false,
   });
 
   const { data: users, isLoading } = useQuery<User[]>({
@@ -148,6 +153,43 @@ export function UserManagement() {
       toast({
         title: "Success",
         description: "User removed successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetPassword = useMutation({
+    mutationFn: async ({ userId, newPassword }: { userId: number; newPassword: string }) => {
+      const response = await fetch(`/api/users/${userId}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to reset password');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({
+        title: "Success",
+        description: "Password reset successfully",
+      });
+      setResetPasswordData({
+        userId: 0,
+        newPassword: "",
+        showDialog: false,
       });
     },
     onError: (error) => {
@@ -278,30 +320,44 @@ export function UserManagement() {
                 </Select>
 
                 {user.id !== currentUser?.id && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="icon">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remove User</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to remove {user.username}? This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => removeUser.mutate(user.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Remove User
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setResetPasswordData({
+                        userId: user.id,
+                        newPassword: "",
+                        showDialog: true,
+                      })}
+                    >
+                      <Key className="h-4 w-4" />
+                    </Button>
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="icon">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remove User</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to remove {user.username}? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => removeUser.mutate(user.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Remove User
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
                 )}
               </div>
             </CardHeader>
@@ -314,6 +370,68 @@ export function UserManagement() {
           No users found.
         </div>
       )}
+
+      <Dialog 
+        open={resetPasswordData.showDialog} 
+        onOpenChange={(open) => setResetPasswordData(prev => ({ ...prev, showDialog: open }))}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Enter a new password for {users?.find(u => u.id === resetPasswordData.userId)?.username}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">New Password</label>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={resetPasswordData.newPassword}
+                onChange={(e) => setResetPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+              />
+              <p className="text-sm text-muted-foreground">
+                Password must be at least 6 characters long
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setResetPasswordData({ userId: 0, newPassword: "", showDialog: false })}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                if (resetPasswordData.newPassword.length < 6) {
+                  toast({
+                    title: "Validation Error",
+                    description: "Password must be at least 6 characters",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                resetPassword.mutate({
+                  userId: resetPasswordData.userId,
+                  newPassword: resetPasswordData.newPassword,
+                });
+              }}
+              disabled={resetPassword.isPending || resetPasswordData.newPassword.length < 6}
+            >
+              {resetPassword.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Resetting...
+                </>
+              ) : (
+                "Reset Password"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -23,6 +23,7 @@ export function registerRoutes(app: Express): Server {
   app.post('/api/users', isAdmin, UserController.create);
   app.put('/api/users/:userId/role', isAdmin, UserController.updateRole);
   app.delete('/api/users/:userId', isAdmin, UserController.removeUser);
+  app.post('/api/users/:userId/reset-password', isAdmin, UserController.resetPassword);
 
   // Admin routes
   app.get('/api/admin/performance', isAdmin, AdminController.getPerformanceMetrics);
