@@ -28,6 +28,27 @@
 
 ---
 
+### AUTH-001: Admin Password Reset (COMPLETED)
+**Priority**: HIGH | **Completed**: 2025-07-28  
+**Description**: Implemented admin-only password reset functionality without email
+
+**What was implemented**:
+- ✅ Added `resetPassword` method to UserController with validation
+- ✅ Created POST `/api/users/:userId/reset-password` route (admin-only)
+- ✅ Updated UserManagement UI with password reset dialog
+- ✅ Added visual key icon button next to each user
+- ✅ Implemented minimum 6-character password validation
+- ✅ Added audit logging for all password resets (HIGH severity)
+- ✅ Security: Cannot reset your own password
+- ✅ All passwords properly hashed with scrypt
+
+**Files Modified**:
+- `server/controllers/userController.ts` - Added resetPassword method
+- `server/routes.ts` - Added password reset route
+- `client/src/pages/UserManagement.tsx` - Added UI with dialog and key icon
+
+---
+
 ### ERROR-001: Fix Raw JSON Error Displays (PARTIALLY COMPLETED)
 **Priority**: Critical | **Started**: 2025-07-26  
 **Description**: Replacing raw JSON errors with user-friendly messages
