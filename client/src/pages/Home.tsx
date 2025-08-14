@@ -104,7 +104,7 @@ export function Home() {
           <div className="max-w-5xl mx-auto text-center">
             {/* Badge */}
             <div className="animate-fade-in-up">
-              <Badge className="mb-8 px-6 py-2 text-sm font-semibold glass-card border-purple-200/30">
+              <Badge className="mb-8 px-6 py-2 text-sm font-semibold glass-card border-blue-200/30">
                 <Sparkles className="mr-2 h-4 w-4" />
                 Australia's #1 Drone Compliance Platform
               </Badge>
@@ -116,7 +116,7 @@ export function Home() {
               <br />
               <span className="relative">
                 Like Never Before
-                <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+                <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-full"></div>
               </span>
             </h1>
 
@@ -131,8 +131,8 @@ export function Home() {
               {stats.map((stat, index) => (
                 <div key={index} className="stats-card group hover:flightdocs-glow transition-all duration-500">
                   <div className="flex items-center justify-center mb-3">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 group-hover:scale-110 transition-transform duration-300">
-                      <stat.icon className="h-6 w-6 text-purple-600" />
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 group-hover:scale-110 transition-transform duration-300">
+                      <stat.icon className="h-6 w-6 text-blue-600" />
                     </div>
                   </div>
                   <div className="text-3xl font-black flightdocs-text-gradient mb-2">{stat.value}</div>
@@ -205,7 +205,7 @@ export function Home() {
                     <div className={`h-48 bg-gradient-to-br ${feature.color} opacity-10`}></div>
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="p-4 rounded-2xl glass-card group-hover:scale-110 transition-transform duration-300">
-                        <feature.icon className="h-12 w-12 text-purple-600" />
+                        <feature.icon className="h-12 w-12 text-blue-600" />
                       </div>
                     </div>
                     {/* Floating Badge */}
@@ -228,7 +228,7 @@ export function Home() {
                     
                     <Button 
                       variant="outline" 
-                      className="w-full group border-purple-200 hover:border-purple-400 hover:bg-purple-50"
+                      className="w-full group border-blue-200 hover:border-blue-400 hover:bg-blue-50"
                     >
                       Learn More
                       <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
@@ -258,7 +258,7 @@ export function Home() {
               {testimonials.map((testimonial, index) => (
                 <div key={index} className="hero-card p-8 text-left">
                   <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold">
                       {testimonial.author[0]}
                     </div>
                     <div className="flex-1">
@@ -281,7 +281,7 @@ export function Home() {
         <section className="py-24 bg-gradient-to-b from-white to-gray-50/50">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto text-center">
-              <Badge className="mb-8 px-4 py-2 glass-card border-purple-200/30">
+              <Badge className="mb-8 px-4 py-2 glass-card border-blue-200/30">
                 <Activity className="mr-2 h-4 w-4" />
                 Admin Tools
               </Badge>
@@ -361,7 +361,7 @@ export function Home() {
             <div className="flex flex-col sm:flex-row justify-center gap-4">
               <Button 
                 size="lg"
-                className="px-12 py-6 text-xl bg-white text-purple-600 hover:bg-gray-100 rounded-2xl font-bold shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105"
+                className="px-12 py-6 text-xl bg-white text-blue-600 hover:bg-gray-100 rounded-2xl font-bold shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105"
                 onClick={() => navigate("/manuals")}
               >
                 <Rocket className="mr-3 h-6 w-6" />
