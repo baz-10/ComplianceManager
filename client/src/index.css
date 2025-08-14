@@ -92,16 +92,16 @@
   /* 🎨 SPECTACULAR GRADIENT SYSTEM */
   .flightdocs-hero-gradient {
     background: linear-gradient(135deg, 
-      hsl(var(--primary)) 0%, 
-      hsl(var(--secondary)) 35%, 
-      hsl(var(--accent)) 100%);
+      #1e40af 0%, 
+      #0891b2 35%, 
+      #06b6d4 100%);
   }
 
   .flightdocs-text-gradient {
     background: linear-gradient(135deg, 
-      hsl(var(--primary)) 0%, 
-      hsl(var(--secondary)) 50%, 
-      hsl(var(--accent)) 100%);
+      #1e40af 0%, 
+      #0891b2 50%, 
+      #06b6d4 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -258,16 +258,16 @@
 
   /* 🎪 MESH GRADIENT BACKGROUNDS */
   .mesh-gradient-1 {
-    background: radial-gradient(circle at 25% 25%, rgba(109, 40, 217, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 75% 75%, rgba(28, 126, 214, 0.08) 0%, transparent 50%),
-                radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.06) 0%, transparent 50%);
+    background: radial-gradient(circle at 25% 25%, rgba(30, 64, 175, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(8, 145, 178, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.06) 0%, transparent 50%);
   }
 
   .mesh-gradient-2 {
     background: 
-      radial-gradient(ellipse 80% 80% at 50% -20%, rgba(109, 40, 217, 0.15), transparent),
-      radial-gradient(ellipse 80% 80% at 80% 60%, rgba(28, 126, 214, 0.1), transparent),
-      radial-gradient(ellipse 80% 80% at 20% 80%, rgba(236, 72, 153, 0.08), transparent);
+      radial-gradient(ellipse 80% 80% at 50% -20%, rgba(30, 64, 175, 0.12), transparent),
+      radial-gradient(ellipse 80% 80% at 80% 60%, rgba(8, 145, 178, 0.08), transparent),
+      radial-gradient(ellipse 80% 80% at 20% 80%, rgba(6, 182, 212, 0.06), transparent);
   }
 
   /* 📱 RESPONSIVE TYPOGRAPHY */
