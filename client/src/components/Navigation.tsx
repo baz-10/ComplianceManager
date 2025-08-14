@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { Activity, BookOpen, Home, LogOut, Users, FileText, CheckCircle, Shield, Archive, Plane, Compass } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -40,15 +41,20 @@ export function Navigation() {
   };
 
   return (
-    <header className="border-b shadow-sm bg-white/95 backdrop-blur-sm sticky top-0 z-50">
+    <header className="border-b border-purple-100/50 shadow-lg bg-white/90 backdrop-blur-xl sticky top-0 z-50">
       <div className="container mx-auto px-4">
-        <nav className="flex h-16 items-center gap-6">
-          <div className="text-xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent flex items-center gap-3">
-            <div className="relative">
-              <Plane className="h-7 w-7 text-primary" />
-              <Compass className="h-3 w-3 text-secondary absolute -top-1 -right-1" />
+        <nav className="flex h-18 items-center gap-8">
+          <div className="text-2xl font-black flightdocs-text-gradient flex items-center gap-3">
+            <div className="relative p-2 rounded-xl flightdocs-card-gradient border border-purple-200/30">
+              <Plane className="h-8 w-8 text-purple-600" />
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
+                <Compass className="h-2 w-2 text-white" />
+              </div>
             </div>
             FlightDocs Pro
+            <Badge className="ml-2 px-2 py-1 text-xs glass-card border-purple-200/30">
+              Pro
+            </Badge>
           </div>
           
           <div className="flex gap-6 ml-8">
