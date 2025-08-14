@@ -37,9 +37,13 @@ export const manuals = pgTable("manuals", {
 export const sections = pgTable("sections", {
   id: serial("id").primaryKey(),
   manualId: integer("manual_id").references(() => manuals.id).notNull(),
+  parentSectionId: integer("parent_section_id"), // Self-referencing for hierarchy
   title: text("title").notNull(),
   description: text("description"),
+  level: integer("level").notNull().default(0), // 0 = top level, 1 = subsection, etc.
+  sectionNumber: text("section_number"), // Auto-generated: "1.0", "1.1", "1.3.1", etc.
   orderIndex: integer("order_index").notNull(),
+  isCollapsed: boolean("is_collapsed").default(false), // UI state for collapsible sections
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   createdById: integer("created_by_id").references(() => users.id).notNull()
@@ -200,6 +204,14 @@ export const sectionsRelations = relations(sections, ({ one, many }) => ({
   createdBy: one(users, {
     fields: [sections.createdById],
     references: [users.id]
+  }),
+  parentSection: one(sections, {
+    fields: [sections.parentSectionId],
+    references: [sections.id]
+  }),
+  childSections: many(sections, {
+    fields: [sections.id],
+    references: [sections.parentSectionId]
   }),
   policies: many(policies)
 }));

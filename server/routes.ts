@@ -47,10 +47,13 @@ export function registerRoutes(app: Express): Server {
 
   // Section routes
   app.get('/api/manuals/:manualId/sections', isAuthenticated, SectionController.list);
+  app.get('/api/manuals/:manualId/sections/hierarchy', isAuthenticated, SectionController.getHierarchy);
   app.post('/api/sections', isEditorOrAdmin, SectionController.create);
   app.put('/api/sections/:id', isEditorOrAdmin, SectionController.update);
+  app.put('/api/sections/:id/move', isEditorOrAdmin, SectionController.moveSection);
   app.delete('/api/sections/:id', isAdmin, SectionController.delete);
   app.post('/api/manuals/:manualId/sections/reorder', isEditorOrAdmin, SectionController.reorder);
+  app.post('/api/manuals/:manualId/sections/renumber', isEditorOrAdmin, SectionController.renumberAllSections);
 
   // Policy routes
   app.get('/api/sections/:sectionId/policies', isAuthenticated, PolicyController.list);

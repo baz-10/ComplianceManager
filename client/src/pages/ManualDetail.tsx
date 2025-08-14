@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { ExportDialog } from "@/components/ExportDialog";
+import { HierarchicalSectionTree, type HierarchicalSection } from "@/components/HierarchicalSectionTree";
 
 // Schema definitions
 const createPolicySchema = z.object({
@@ -75,7 +76,12 @@ interface Section {
   id: number;
   title: string;
   description?: string;
+  level: number;
+  sectionNumber: string;
+  parentSectionId?: number | null;
+  isCollapsed: boolean;
   policies: Policy[];
+  orderIndex: number;
 }
 
 interface Manual {
@@ -668,8 +674,13 @@ export function ManualDetail() {
     queryKey: [`/api/manuals/${id}`],
   });
 
+  const { data: hierarchicalSections, isLoading: sectionsLoading } = useQuery<HierarchicalSection[]>({
+    queryKey: [`/api/manuals/${id}/sections/hierarchy`],
+    enabled: !!id,
+  });
+
   const createSection = useMutation({
-    mutationFn: async (data: CreateSectionForm) => {
+    mutationFn: async (data: CreateSectionForm & { parentSectionId?: number }) => {
       const response = await fetch("/api/sections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -677,7 +688,6 @@ export function ManualDetail() {
           ...data,
           manualId: Number(id),
           createdById: user?.id,
-          orderIndex: manual?.sections?.length ?? 0,
         }),
         credentials: "include",
       });
@@ -690,11 +700,100 @@ export function ManualDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}/sections/hierarchy`] });
       toast({
         title: "Success",
         description: "Section created successfully",
       });
       sectionForm.reset();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const toggleSectionCollapse = useMutation({
+    mutationFn: async (sectionId: number) => {
+      const response = await fetch(`/api/sections/${sectionId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isCollapsed: true }), // Toggle will be handled on server
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}/sections/hierarchy`] });
+    },
+  });
+
+  const moveSection = useMutation({
+    mutationFn: async ({ sectionId, parentSectionId, orderIndex }: { 
+      sectionId: number; 
+      parentSectionId: number | null; 
+      orderIndex: number;
+    }) => {
+      const response = await fetch(`/api/sections/${sectionId}/move`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parentSectionId, orderIndex }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}/sections/hierarchy`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
+      toast({
+        title: "Success",
+        description: "Section moved successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const reorderSections = useMutation({
+    mutationFn: async (hierarchicalOrder: any[]) => {
+      const response = await fetch(`/api/manuals/${id}/sections/reorder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hierarchicalOrder }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}/sections/hierarchy`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
+      toast({
+        title: "Success",
+        description: "Sections reordered successfully",
+      });
     },
     onError: (error) => {
       toast({
@@ -1236,46 +1335,34 @@ export function ManualDetail() {
           </Dialog>
         </div>
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={manual.sections?.map((s) => s.id) ?? []}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="grid gap-4">
-              {manual.sections?.map((section, sectionIndex) => (
-                <SortableSection
-                  key={section.id}
-                  section={section}
-                  sectionIndex={sectionIndex}
-                  onReorderPolicies={(sectionId, policyIds) => {
-                    reorderPolicies.mutate({ sectionId, policyIds });
-                  }}
-                  onUpdatePolicy={(policyId, data) => {
-                    updatePolicy.mutate({ policyId, data });
-                  }}
-                  onDeletePolicy={(policyId) => {
-                    deletePolicy.mutate(policyId);
-                  }}
-                  onDeleteSection={(sectionId) => {
-                    deleteSection.mutate(sectionId);
-                  }}
-                  onCreatePolicy={(sectionId, formData) => {
-                    createPolicy.mutate({ sectionId, formData });
-                  }}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-
-        {(!manual.sections || manual.sections.length === 0) && (
-          <div className="text-center py-8 text-muted-foreground">
-            No sections found. Add your first section to get started.
+        {sectionsLoading ? (
+          <div className="text-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading sections...</p>
           </div>
+        ) : (
+          <HierarchicalSectionTree
+            sections={hierarchicalSections || []}
+            manualId={Number(id)}
+            onCreateSection={(data) => {
+              createSection.mutate(data);
+            }}
+            onUpdateSection={(sectionId, data) => {
+              updateSection.mutate({ sectionId, data });
+            }}
+            onDeleteSection={(sectionId) => {
+              deleteSection.mutate(sectionId);
+            }}
+            onMoveSection={(sectionId, parentSectionId, orderIndex) => {
+              moveSection.mutate({ sectionId, parentSectionId, orderIndex });
+            }}
+            onToggleCollapse={(sectionId) => {
+              toggleSectionCollapse.mutate(sectionId);
+            }}
+            onReorderSections={(hierarchicalOrder) => {
+              reorderSections.mutate(hierarchicalOrder);
+            }}
+          />
         )}
       </div>
     </div>
