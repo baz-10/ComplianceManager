@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Activity, BookOpen, Home, LogOut, Users, FileText, CheckCircle, Shield, Archive } from "lucide-react";
+import { Activity, BookOpen, Home, LogOut, Users, FileText, CheckCircle, Shield, Archive, Plane, Compass } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,12 +12,12 @@ export function Navigation() {
 
   const navItems = [
     { href: "/", label: "Home", icon: Home },
-    { href: "/manuals", label: "Manuals", icon: BookOpen },
+    { href: "/manuals", label: "Operations Manual", icon: BookOpen },
   ];
 
   const adminItems = [
     { href: "/admin/dashboard", label: "Analytics", icon: Activity },
-    { href: "/admin/users", label: "User Management", icon: Users },
+    { href: "/admin/users", label: "Pilot Management", icon: Users },
     { href: "/admin/compliance", label: "CASA Compliance", icon: Shield },
     { href: "/admin/archived-manuals", label: "Archived", icon: Archive }
   ];
@@ -40,12 +40,15 @@ export function Navigation() {
   };
 
   return (
-    <header className="border-b shadow-sm bg-white sticky top-0 z-50">
+    <header className="border-b shadow-sm bg-white/95 backdrop-blur-sm sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <nav className="flex h-16 items-center gap-6">
-          <div className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent flex items-center gap-2">
-            <FileText className="h-6 w-6 text-primary" />
-            DocuManager
+          <div className="text-xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent flex items-center gap-3">
+            <div className="relative">
+              <Plane className="h-7 w-7 text-primary" />
+              <Compass className="h-3 w-3 text-secondary absolute -top-1 -right-1" />
+            </div>
+            FlightDocs Pro
           </div>
           
           <div className="flex gap-6 ml-8">
