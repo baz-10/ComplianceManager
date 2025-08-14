@@ -1046,37 +1046,6 @@ export function ManualDetail() {
     },
   });
 
-  const reorderSections = useMutation({
-    mutationFn: async (sectionIds: number[]) => {
-      const response = await fetch(`/api/manuals/${id}/sections/reorder`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderMap: sectionIds }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
-      toast({
-        title: "Success",
-        description: "Sections reordered successfully",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
   const archiveManual = useMutation({
     mutationFn: async ({ manualId, reason }: { manualId: number; reason: string }) => {
       const response = await fetch(`/api/manuals/${manualId}/archive`, {
