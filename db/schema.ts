@@ -7,12 +7,34 @@ import { z } from "zod";
 export const UserRole = pgEnum("user_role", ["ADMIN", "EDITOR", "READER"]);
 export const Status = pgEnum("status", ["DRAFT", "LIVE"]);
 
+// Organizations table
+export const organizations = pgTable("organizations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  domain: text("domain"), // For email-based auto-assignment (e.g., "@company.com")
+  settings: json("settings").$type<{
+    allowSelfRegistration?: boolean;
+    defaultUserRole?: "ADMIN" | "EDITOR" | "READER";
+    maxUsers?: number;
+    features?: string[];
+  }>().default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdById: integer("created_by_id"), // Will be set up in relations to avoid circular reference
+  // Soft delete for organizations
+  archivedAt: timestamp("archived_at"),
+  archivedById: integer("archived_by_id"), // Will be set up in relations
+  archiveReason: text("archive_reason")
+});
+
 // Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
   password: text("password").notNull(),
   role: UserRole("role").default("READER").notNull(),
+  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -23,6 +45,7 @@ export const manuals = pgTable("manuals", {
   title: text("title").notNull(),
   description: text("description"),
   status: Status("status").default("DRAFT").notNull(),
+  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   createdById: integer("created_by_id").references(() => users.id).notNull(),
@@ -147,7 +170,24 @@ export const approvalWorkflows = pgTable("approval_workflows", {
 });
 
 // Relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const organizationsRelations = relations(organizations, ({ one, many }) => ({
+  users: many(users),
+  manuals: many(manuals),
+  createdBy: one(users, {
+    fields: [organizations.createdById],
+    references: [users.id]
+  }),
+  archivedBy: one(users, {
+    fields: [organizations.archivedById],
+    references: [users.id]
+  })
+}));
+
+export const usersRelations = relations(users, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [users.organizationId],
+    references: [organizations.id]
+  }),
   manuals: many(manuals),
   sections: many(sections),
   policies: many(policies),
@@ -189,6 +229,10 @@ export const approvalWorkflowsRelations = relations(approvalWorkflows, ({ one })
 }));
 
 export const manualsRelations = relations(manuals, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [manuals.organizationId],
+    references: [organizations.id]
+  }),
   createdBy: one(users, {
     fields: [manuals.createdById],
     references: [users.id]
@@ -276,6 +320,11 @@ export const annotationsRelations = relations(annotations, ({ one, many }) => ({
 }));
 
 // Schemas
+export const insertOrganizationSchema = createInsertSchema(organizations);
+export const selectOrganizationSchema = createSelectSchema(organizations);
+export type Organization = typeof organizations.$inferSelect;
+export type NewOrganization = typeof organizations.$inferInsert;
+
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 export type User = typeof users.$inferSelect;

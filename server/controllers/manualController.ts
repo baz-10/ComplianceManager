@@ -13,8 +13,15 @@ declare module 'express-serve-static-core' {
 export const ManualController = {
   async list(req: Request, res: Response) {
     try {
-      const allManuals = await db.query.manuals.findMany({
-        where: isNull(manuals.archivedAt),
+      if (!req.user?.organizationId) {
+        return res.status(403).json({ error: 'Organization context required' });
+      }
+
+      const organizationManuals = await db.query.manuals.findMany({
+        where: and(
+          eq(manuals.organizationId, req.user.organizationId),
+          isNull(manuals.archivedAt)
+        ),
         with: {
           sections: {
             with: {
@@ -25,10 +32,11 @@ export const ManualController = {
               }
             }
           },
-          createdBy: true
+          createdBy: true,
+          organization: true
         }
       });
-      res.json(allManuals);
+      res.json(organizationManuals);
     } catch (error) {
       sendErrorResponse(res, error);
     }
@@ -41,13 +49,14 @@ export const ManualController = {
         return res.status(400).json({ error: result.error.message });
       }
 
-      if (!req.user) {
-        return res.status(401).json({ error: 'Authentication required' });
+      if (!req.user?.organizationId) {
+        return res.status(403).json({ error: 'Organization context required' });
       }
 
       const [manual] = await db.insert(manuals)
         .values({
           ...result.data,
+          organizationId: req.user.organizationId,
           createdById: req.user.id
         })
         .returning();
@@ -66,16 +75,23 @@ export const ManualController = {
         return res.status(400).json({ error: result.error.message });
       }
 
+      if (!req.user?.organizationId) {
+        return res.status(403).json({ error: 'Organization context required' });
+      }
+
       const [manual] = await db.update(manuals)
         .set({
           ...result.data,
           updatedAt: new Date()
         })
-        .where(eq(manuals.id, parseInt(id)))
+        .where(and(
+          eq(manuals.id, parseInt(id)),
+          eq(manuals.organizationId, req.user.organizationId)
+        ))
         .returning();
 
       if (!manual) {
-        return res.status(404).json({ error: 'Manual not found' });
+        return res.status(404).json({ error: 'Manual not found or access denied' });
       }
 
       res.json(manual);
@@ -289,8 +305,16 @@ export const ManualController = {
   async getById(req: Request, res: Response) {
     try {
       const { id } = req.params;
+
+      if (!req.user?.organizationId) {
+        return res.status(403).json({ error: 'Organization context required' });
+      }
+
       const manual = await db.query.manuals.findFirst({
-        where: eq(manuals.id, parseInt(id)),
+        where: and(
+          eq(manuals.id, parseInt(id)),
+          eq(manuals.organizationId, req.user.organizationId)
+        ),
         with: {
           sections: {
             with: {
@@ -301,12 +325,13 @@ export const ManualController = {
               }
             }
           },
-          createdBy: true
+          createdBy: true,
+          organization: true
         }
       });
 
       if (!manual) {
-        return res.status(404).json({ error: 'Manual not found' });
+        return res.status(404).json({ error: 'Manual not found or access denied' });
       }
 
       res.json(manual);

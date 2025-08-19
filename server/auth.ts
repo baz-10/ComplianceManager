@@ -5,7 +5,7 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { users, insertUserSchema, type User } from "@db/schema";
+import { users, organizations, insertUserSchema, type User } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 
@@ -60,11 +60,12 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        const [user] = await db
-          .select()
-          .from(users)
-          .where(eq(users.username, username))
-          .limit(1);
+        const user = await db.query.users.findFirst({
+          where: eq(users.username, username),
+          with: {
+            organization: true
+          }
+        });
 
         if (!user) {
           return done(null, false, { message: "Incorrect username." });
@@ -86,11 +87,12 @@ export function setupAuth(app: Express) {
 
   passport.deserializeUser(async (id: number, done) => {
     try {
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, id))
-        .limit(1);
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, id),
+        with: {
+          organization: true
+        }
+      });
       done(null, user);
     } catch (err) {
       done(err);
@@ -123,6 +125,10 @@ export function setupAuth(app: Express) {
       // Default role is READER unless it's the first user
       const role = allUsers.length === 0 ? "ADMIN" : "READER";
 
+      // For now, assign all new users to the default organization (ID 1)
+      // TODO: Implement proper organization invitation system
+      const organizationId = 1;
+
       const hashedPassword = await crypto.hash(password);
 
       const [newUser] = await db
@@ -131,6 +137,7 @@ export function setupAuth(app: Express) {
           username,
           password: hashedPassword,
           role, // Use the determined role
+          organizationId,
         })
         .returning();
 

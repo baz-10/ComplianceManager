@@ -8,6 +8,7 @@ import { AnnotationController } from "./controllers/annotationController";
 import { AdminController, trackDatabaseQueries } from "./controllers/adminController";
 import { AIPolicyController } from "./controllers/aiPolicyController";
 import { UserController } from "./controllers/userController";
+import { OrganizationController } from "./controllers/organizationController";
 import { UploadController, upload } from "./controllers/uploadController";
 import { isAdmin, isEditorOrAdmin, isAuthenticated } from "./middleware/roleMiddleware";
 
@@ -24,6 +25,15 @@ export function registerRoutes(app: Express): Server {
   app.put('/api/users/:userId/role', isAdmin, UserController.updateRole);
   app.delete('/api/users/:userId', isAdmin, UserController.removeUser);
   app.post('/api/users/:userId/reset-password', isAdmin, UserController.resetPassword);
+
+  // Organization Management routes
+  app.get('/api/organization', isAuthenticated, OrganizationController.getCurrent);
+  app.put('/api/organization', isAdmin, OrganizationController.update);
+  app.get('/api/organization/users', isAdmin, OrganizationController.getUsers);
+  app.put('/api/organization/users/:userId/role', isAdmin, OrganizationController.updateUserRole);
+  app.delete('/api/organization/users/:userId', isAdmin, OrganizationController.removeUser);
+  app.get('/api/organization/stats', isAdmin, OrganizationController.getStats);
+  app.post('/api/organizations', isAdmin, OrganizationController.create);
 
   // Admin routes
   app.get('/api/admin/performance', isAdmin, AdminController.getPerformanceMetrics);
