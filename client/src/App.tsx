@@ -10,6 +10,7 @@ import { AdminDashboard } from "./pages/AdminDashboard";
 import { UserManagement } from "./pages/UserManagement";
 import { ComplianceDashboard } from "./pages/ComplianceDashboard";
 import { ArchivedManuals } from "./pages/ArchivedManuals";
+import { OrganizationSettings } from "./pages/OrganizationSettings";
 import { AuthPage } from "./pages/AuthPage";
 import { useUser } from "./hooks/use-user";
 
@@ -41,6 +42,7 @@ function App() {
               <>
                 <Route path="/admin/dashboard" component={AdminDashboard} />
                 <Route path="/admin/users" component={UserManagement} />
+                <Route path="/organization/settings" component={OrganizationSettings} />
                 <Route path="/admin/compliance" component={ComplianceDashboard} />
                 <Route path="/admin/archived-manuals" component={ArchivedManuals} />
               </>

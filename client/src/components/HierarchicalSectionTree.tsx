@@ -9,7 +9,8 @@ import {
   Trash2, 
   FileText,
   Indent,
-  Outdent
+  Outdent,
+  CheckCircle
 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import {
@@ -81,6 +82,9 @@ interface Policy {
   title: string;
   status: "DRAFT" | "LIVE";
   currentVersionId: number | null;
+  currentVersion?: {
+    bodyContent: string;
+  };
   isAcknowledged?: boolean;
 }
 
@@ -93,6 +97,35 @@ interface HierarchicalSectionTreeProps {
   onMoveSection: (sectionId: number, parentSectionId: number | null, orderIndex: number) => void;
   onToggleCollapse: (sectionId: number) => void;
   onReorderSections: (hierarchicalOrder: any[]) => void;
+  onCreatePolicy?: (sectionId: number, data: any) => void;
+}
+
+// Simple AddPolicyButton component
+function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onCreatePolicy?: (sectionId: number, data: any) => void }) {
+  if (!onCreatePolicy) {
+    return (
+      <Button variant="outline" size="sm" className="w-full mt-3" disabled>
+        <Plus className="h-4 w-4 mr-2" />
+        Add Policy (Connect handler)
+      </Button>
+    );
+  }
+  
+  return (
+    <Button 
+      variant="outline" 
+      size="sm" 
+      className="w-full mt-3 text-primary hover:bg-primary/10 border-primary/30"
+      onClick={() => {
+        // For now, this is a placeholder - in a full implementation, 
+        // this would open a dialog or navigate to a policy creation form
+        console.log('Create policy for section:', sectionId);
+      }}
+    >
+      <Plus className="h-4 w-4 mr-2" />
+      Add Policy
+    </Button>
+  );
 }
 
 // Sortable section item component
@@ -104,6 +137,7 @@ function SortableHierarchicalSection({
   onDeleteSection,
   onToggleCollapse,
   onMoveSection,
+  onCreatePolicy,
 }: {
   section: HierarchicalSection;
   level?: number;
@@ -112,6 +146,7 @@ function SortableHierarchicalSection({
   onDeleteSection: (sectionId: number) => void;
   onToggleCollapse: (sectionId: number) => void;
   onMoveSection: (sectionId: number, parentSectionId: number | null, orderIndex: number) => void;
+  onCreatePolicy?: (sectionId: number, data: any) => void;
 }) {
   const { user } = useUser();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -194,11 +229,23 @@ function SortableHierarchicalSection({
               )}
             </div>
 
-            {/* Policy Count */}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {/* Policy Count - Clickable */}
+            <button
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors px-2 py-1 rounded-md hover:bg-primary/10"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleCollapse(section.id);
+              }}
+              title="Click to view policies"
+            >
               <FileText className="h-4 w-4" />
               <span>{section.policies.length} policies</span>
-            </div>
+              {section.policies.length > 0 && (
+                section.isCollapsed ? 
+                  <ChevronRight className="h-3 w-3" /> : 
+                  <ChevronDown className="h-3 w-3" />
+              )}
+            </button>
 
             {/* Action Buttons */}
             {user?.role !== 'READER' && (
@@ -286,21 +333,48 @@ function SortableHierarchicalSection({
           </div>
         </CardHeader>
 
-        {/* Policy Summary */}
-        {section.policies.length > 0 && (
-          <CardContent className="py-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>Policies:</span>
-              {section.policies.slice(0, 3).map((policy, index) => (
-                <span key={policy.id} className="text-primary">
-                  {policy.title}
-                  {index < Math.min(section.policies.length - 1, 2) && ","}
-                </span>
-              ))}
-              {section.policies.length > 3 && (
-                <span>and {section.policies.length - 3} more...</span>
-              )}
+        {/* Policy Details - Expandable */}
+        {!section.isCollapsed && section.policies.length > 0 && (
+          <CardContent className="space-y-3 bg-muted/20">
+            <div className="text-sm font-medium text-muted-foreground mb-3">
+              Policies in this section:
             </div>
+            {section.policies.map((policy) => (
+              <div key={policy.id} className="bg-background rounded-lg p-3 border shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-foreground">{policy.title}</h4>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      policy.status === 'LIVE' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {policy.status}
+                    </span>
+                    {policy.isAcknowledged && (
+                      <CheckCircle className="h-4 w-4 text-green-600" title="Acknowledged" />
+                    )}
+                  </div>
+                </div>
+                {policy.currentVersion?.bodyContent && (
+                  <div className="text-sm text-muted-foreground">
+                    <div 
+                      className="prose prose-sm max-w-none line-clamp-3"
+                      dangerouslySetInnerHTML={{ 
+                        __html: policy.currentVersion.bodyContent.substring(0, 200) + '...' 
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        )}
+
+        {/* Add Policy Button */}
+        {!section.isCollapsed && user?.role !== 'READER' && (
+          <CardContent className="pt-0">
+            <AddPolicyButton sectionId={section.id} onCreatePolicy={onCreatePolicy} />
           </CardContent>
         )}
       </Card>
@@ -342,6 +416,7 @@ function SortableHierarchicalSection({
               onDeleteSection={onDeleteSection}
               onToggleCollapse={onToggleCollapse}
               onMoveSection={onMoveSection}
+              onCreatePolicy={onCreatePolicy}
             />
           ))}
         </div>
@@ -394,6 +469,7 @@ export function HierarchicalSectionTree({
   onMoveSection,
   onToggleCollapse,
   onReorderSections,
+  onCreatePolicy,
 }: HierarchicalSectionTreeProps) {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
@@ -549,6 +625,7 @@ export function HierarchicalSectionTree({
             onDeleteSection={onDeleteSection}
             onToggleCollapse={onToggleCollapse}
             onMoveSection={onMoveSection}
+            onCreatePolicy={onCreatePolicy}
           />
           
           {/* Drop zone for children */}

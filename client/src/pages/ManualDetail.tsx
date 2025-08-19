@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -674,9 +674,19 @@ export function ManualDetail() {
     queryKey: [`/api/manuals/${id}`],
   });
 
-  const { data: hierarchicalSections, isLoading: sectionsLoading } = useQuery<HierarchicalSection[]>({
+  const { data: rawHierarchicalSections, isLoading: sectionsLoading } = useQuery<HierarchicalSection[]>({
     queryKey: [`/api/manuals/${id}/sections/hierarchy`],
     enabled: !!id,
+  });
+
+  // Add collapse state to sections
+  const hierarchicalSections = rawHierarchicalSections?.map((section: any) => {
+    const mapSectionWithCollapse = (s: any): HierarchicalSection => ({
+      ...s,
+      isCollapsed: collapsedSections.has(s.id),
+      children: s.children?.map(mapSectionWithCollapse) || []
+    });
+    return mapSectionWithCollapse(section);
   });
 
   const createSection = useMutation({
@@ -716,25 +726,39 @@ export function ManualDetail() {
     },
   });
 
-  const toggleSectionCollapse = useMutation({
-    mutationFn: async (sectionId: number) => {
-      const response = await fetch(`/api/sections/${sectionId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isCollapsed: true }), // Toggle will be handled on server
-        credentials: "include",
+  // Client-side state for collapsed sections
+  const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
+  
+  // Initialize sections with policies as collapsed when data loads
+  useEffect(() => {
+    if (rawHierarchicalSections && collapsedSections.size === 0) {
+      const initialCollapsed = new Set<number>();
+      const addCollapsedSections = (sections: any[]) => {
+        sections?.forEach((section: any) => {
+          if (section.policies?.length > 0) {
+            initialCollapsed.add(section.id);
+          }
+          addCollapsedSections(section.children || []);
+        });
+      };
+      addCollapsedSections(rawHierarchicalSections);
+      setCollapsedSections(initialCollapsed);
+    }
+  }, [rawHierarchicalSections, collapsedSections.size]);
+  
+  const toggleSectionCollapse = {
+    mutate: (sectionId: number) => {
+      setCollapsedSections(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(sectionId)) {
+          newSet.delete(sectionId);
+        } else {
+          newSet.add(sectionId);
+        }
+        return newSet;
       });
-
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}/sections/hierarchy`] });
-    },
-  });
+    }
+  };
 
   const moveSection = useMutation({
     mutationFn: async ({ sectionId, parentSectionId, orderIndex }: { 
@@ -1330,6 +1354,15 @@ export function ManualDetail() {
             }}
             onReorderSections={(hierarchicalOrder) => {
               reorderSections.mutate(hierarchicalOrder);
+            }}
+            onCreatePolicy={(sectionId, data) => {
+              // For now, just log - in a full implementation this would open the policy creation dialog
+              console.log('Create policy for section:', sectionId, data);
+              toast({
+                title: "Policy Creation",
+                description: "Policy creation functionality will be implemented here",
+                duration: 3000,
+              });
             }}
           />
         )}

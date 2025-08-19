@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Activity, BookOpen, Home, LogOut, Users, FileText, CheckCircle, Shield, Archive, Plane, Compass } from "lucide-react";
+import { Activity, BookOpen, Home, LogOut, Users, FileText, CheckCircle, Shield, Archive, Plane, Compass, Building2 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ export function Navigation() {
   const adminItems = [
     { href: "/admin/dashboard", label: "Analytics", icon: Activity },
     { href: "/admin/users", label: "Pilot Management", icon: Users },
+    { href: "/organization/settings", label: "Organization", icon: Building2 },
     { href: "/admin/compliance", label: "CASA Compliance", icon: Shield },
     { href: "/admin/archived-manuals", label: "Archived", icon: Archive }
   ];
