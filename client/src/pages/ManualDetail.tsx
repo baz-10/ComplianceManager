@@ -679,6 +679,26 @@ export function ManualDetail() {
     enabled: !!id,
   });
 
+  // Client-side state for collapsed sections
+  const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
+  
+  // Initialize sections with policies as collapsed when data loads
+  useEffect(() => {
+    if (rawHierarchicalSections && collapsedSections.size === 0) {
+      const initialCollapsed = new Set<number>();
+      const addCollapsedSections = (sections: any[]) => {
+        sections?.forEach((section: any) => {
+          if (section.policies?.length > 0) {
+            initialCollapsed.add(section.id);
+          }
+          addCollapsedSections(section.children || []);
+        });
+      };
+      addCollapsedSections(rawHierarchicalSections);
+      setCollapsedSections(initialCollapsed);
+    }
+  }, [rawHierarchicalSections, collapsedSections.size]);
+
   // Add collapse state to sections
   const hierarchicalSections = rawHierarchicalSections?.map((section: any) => {
     const mapSectionWithCollapse = (s: any): HierarchicalSection => ({
@@ -726,26 +746,6 @@ export function ManualDetail() {
     },
   });
 
-  // Client-side state for collapsed sections
-  const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
-  
-  // Initialize sections with policies as collapsed when data loads
-  useEffect(() => {
-    if (rawHierarchicalSections && collapsedSections.size === 0) {
-      const initialCollapsed = new Set<number>();
-      const addCollapsedSections = (sections: any[]) => {
-        sections?.forEach((section: any) => {
-          if (section.policies?.length > 0) {
-            initialCollapsed.add(section.id);
-          }
-          addCollapsedSections(section.children || []);
-        });
-      };
-      addCollapsedSections(rawHierarchicalSections);
-      setCollapsedSections(initialCollapsed);
-    }
-  }, [rawHierarchicalSections, collapsedSections.size]);
-  
   const toggleSectionCollapse = {
     mutate: (sectionId: number) => {
       setCollapsedSections(prev => {
