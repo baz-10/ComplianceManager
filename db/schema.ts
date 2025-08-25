@@ -319,32 +319,7 @@ export const annotationsRelations = relations(annotations, ({ one, many }) => ({
   })
 }));
 
-// Organization relations
-export const organizationsRelations = relations(organizations, ({ one, many }) => ({
-  users: many(users),
-  manuals: many(manuals),
-  createdBy: one(users, {
-    fields: [organizations.createdById],
-    references: [users.id]
-  }),
-  archivedBy: one(users, {
-    fields: [organizations.archivedById],
-    references: [users.id]
-  })
-}));
-
-// User relations
-export const usersRelations = relations(users, ({ one, many }) => ({
-  organization: one(organizations, {
-    fields: [users.organizationId],
-    references: [organizations.id]
-  }),
-  manualsCreated: many(manuals),
-  sectionsCreated: many(sections),
-  policiesCreated: many(policies),
-  acknowledgements: many(acknowledgements),
-  annotations: many(annotations)
-}));
+// (Deduplicated) Organization and User relations are defined above.
 
 // Schemas
 export const insertOrganizationSchema = createInsertSchema(organizations);
