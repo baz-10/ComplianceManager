@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -309,7 +309,7 @@ export function RichTextEditor({ content, onChange, className }: RichTextEditorP
         },
       }),
     ],
-    content,
+    content: content || "",
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
@@ -319,6 +319,15 @@ export function RichTextEditor({ content, onChange, className }: RichTextEditorP
       },
     },
   });
+
+  // Sync external content updates (e.g., AI draft) into the editor
+  useEffect(() => {
+    if (!editor) return;
+    const current = editor.getHTML();
+    if (typeof content === 'string' && content !== current) {
+      editor.commands.setContent(content, false);
+    }
+  }, [content, editor]);
 
   return (
     <div className={cn("bg-card border rounded-lg", className)}>

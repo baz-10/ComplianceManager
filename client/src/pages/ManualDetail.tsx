@@ -1391,8 +1391,8 @@ export function ManualDetail() {
             onReorderSections={(hierarchicalOrder) => {
               reorderSections.mutate(hierarchicalOrder);
             }}
-            onCreatePolicy={(sectionId, data) => {
-              createPolicy.mutate({ sectionId, formData: data });
+            onCreatePolicy={async (sectionId, data) => {
+              await createPolicy.mutateAsync({ sectionId, formData: data });
             }}
           />
         )}

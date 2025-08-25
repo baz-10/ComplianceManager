@@ -116,7 +116,8 @@ const createPolicySchema = z.object({
 
 type CreatePolicyForm = z.infer<typeof createPolicySchema>;
 
-function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onCreatePolicy?: (sectionId: number, data: CreatePolicyForm) => void }) {
+function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onCreatePolicy?: (sectionId: number, data: CreatePolicyForm) => Promise<any> | void }) {
+  const [open, setOpen] = useState(false);
   const form = useForm<CreatePolicyForm>({
     resolver: zodResolver(createPolicySchema),
     defaultValues: {
@@ -140,7 +141,7 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
   }
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button 
           variant="outline" 
@@ -157,8 +158,14 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
         </DialogHeader>
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit((data) => {
-              onCreatePolicy(sectionId, data);
+            onSubmit={form.handleSubmit(async (data) => {
+              try {
+                await Promise.resolve(onCreatePolicy(sectionId, data));
+                form.reset();
+                setOpen(false);
+              } catch (e) {
+                // Error toasts handled upstream
+              }
             })}
             className="space-y-4 flex-1 overflow-y-auto pr-1"
           >
