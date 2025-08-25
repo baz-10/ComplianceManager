@@ -55,6 +55,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useToast } from "@/hooks/use-toast";
 import { RichTextEditor } from "@/components/RichTextEditor";
 
 // Schema for creating sections
@@ -167,12 +168,32 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
                 </FormItem>
               )}
             />
+            <div className="flex items-center justify-between">
+              <FormLabel className="text-sm">Content</FormLabel>
+              <Button type="button" variant="ghost" size="sm" onClick={async () => {
+                const topic = window.prompt("Enter policy topic (e.g., Flight Safety)");
+                if (!topic) return;
+                const context = window.prompt("Enter context (e.g., intended audience, scope)") || "";
+                try {
+                  const res = await fetch('/api/policies/generate-draft', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ topic, context })
+                  });
+                  if (!res.ok) throw new Error(await res.text());
+                  const data = await res.json();
+                  form.setValue('bodyContent', data.draft || '');
+                } catch (err) {
+                  console.error('AI generation failed', err);
+                }
+              }}>Generate with AI</Button>
+            </div>
             <FormField
               control={form.control}
               name="bodyContent"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Content</FormLabel>
                   <FormControl>
                     <RichTextEditor
                       content={field.value}
@@ -262,6 +283,14 @@ function SortableHierarchicalSection({
   const indentationClass = `ml-${indentationLevel * 6}`;
 
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const interactiveTags = ["input", "textarea", "select", "button", "a"];
+    if (target && (target.isContentEditable || interactiveTags.includes(target.tagName.toLowerCase()))) {
+      return; // ignore typing inside inputs/editors
+    }
+    if (e.target !== e.currentTarget) {
+      return; // only when card itself focused
+    }
     // Keyboard support for expand/collapse on tree items
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
