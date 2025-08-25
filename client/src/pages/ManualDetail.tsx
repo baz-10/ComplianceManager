@@ -1392,13 +1392,7 @@ export function ManualDetail() {
               reorderSections.mutate(hierarchicalOrder);
             }}
             onCreatePolicy={(sectionId, data) => {
-              // For now, just log - in a full implementation this would open the policy creation dialog
-              console.log('Create policy for section:', sectionId, data);
-              toast({
-                title: "Policy Creation",
-                description: "Policy creation functionality will be implemented here",
-                duration: 3000,
-              });
+              createPolicy.mutate({ sectionId, formData: data });
             }}
           />
         )}

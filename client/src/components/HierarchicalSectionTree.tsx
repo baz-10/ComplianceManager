@@ -55,6 +55,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { RichTextEditor } from "@/components/RichTextEditor";
 
 // Schema for creating sections
 const createSectionSchema = z.object({
@@ -102,30 +103,105 @@ interface HierarchicalSectionTreeProps {
 }
 
 // Simple AddPolicyButton component
-function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onCreatePolicy?: (sectionId: number, data: any) => void }) {
+const createPolicySchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  bodyContent: z.string().min(1, "Content is required"),
+  effectiveDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+});
+
+type CreatePolicyForm = z.infer<typeof createPolicySchema>;
+
+function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onCreatePolicy?: (sectionId: number, data: CreatePolicyForm) => void }) {
+  const form = useForm<CreatePolicyForm>({
+    resolver: zodResolver(createPolicySchema),
+    defaultValues: {
+      title: "",
+      bodyContent: "",
+      effectiveDate: new Date().toISOString().split("T")[0],
+    },
+  });
+
   if (!onCreatePolicy) {
     return (
       <Button variant="outline" size="sm" className="w-full mt-3" disabled>
         <Plus className="h-4 w-4 mr-2" />
-        Add Policy (Connect handler)
+        Add Policy
       </Button>
     );
   }
-  
+
   return (
-    <Button 
-      variant="outline" 
-      size="sm" 
-      className="w-full mt-3 text-primary hover:bg-primary/10 border-primary/30"
-      onClick={() => {
-        // For now, this is a placeholder - in a full implementation, 
-        // this would open a dialog or navigate to a policy creation form
-        console.log('Create policy for section:', sectionId);
-      }}
-    >
-      <Plus className="h-4 w-4 mr-2" />
-      Add Policy
-    </Button>
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="w-full mt-3 text-primary hover:bg-primary/10 border-primary/30"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Policy
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Create New Policy</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit((data) => {
+              onCreatePolicy(sectionId, data);
+            })}
+            className="space-y-4 flex-1 overflow-y-auto pr-1"
+          >
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter policy title" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="bodyContent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Content</FormLabel>
+                  <FormControl>
+                    <RichTextEditor
+                      content={field.value}
+                      onChange={field.onChange}
+                      className="min-h-[250px] max-h-[350px] overflow-y-auto"
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="effectiveDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Effective Date</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <div className="flex justify-end">
+              <Button type="submit">Create Policy</Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
