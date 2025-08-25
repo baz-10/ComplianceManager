@@ -22,6 +22,14 @@ import {
   Eye,
   RefreshCw
 } from "lucide-react";
+import { 
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 interface AuditLog {
   id: number;
@@ -139,9 +147,27 @@ export function ComplianceDashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="container max-w-7xl mx-auto px-4 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">CASA Compliance Dashboard</h1>
+        <div className="space-y-1">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/">Home</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/admin/dashboard">Admin</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>CASA Compliance</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          <h1 className="text-3xl font-semibold tracking-tight">CASA Compliance Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Audit trail, reports, and key compliance metrics.</p>
+        </div>
         <div className="flex gap-2">
           <Button onClick={() => refetchAudit()} variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
@@ -158,7 +184,13 @@ export function ComplianceDashboard() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          {complianceData && (
+          {complianceLoading && (
+            <div className="flex items-center justify-center min-h-[200px]">
+              <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
+              <span className="text-sm text-muted-foreground">Loading overview…</span>
+            </div>
+          )}
+          {(!complianceLoading && complianceData) && (
             <>
               {/* Key Metrics */}
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -235,6 +267,9 @@ export function ComplianceDashboard() {
                 </CardContent>
               </Card>
             </>
+          )}
+          {(!complianceLoading && !complianceData) && (
+            <div className="text-center py-12 text-muted-foreground">No compliance data available</div>
           )}
         </TabsContent>
 
@@ -330,7 +365,10 @@ export function ComplianceDashboard() {
             </CardHeader>
             <CardContent>
               {auditLoading ? (
-                <div className="text-center py-8">Loading audit trail...</div>
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
+                  <span className="text-sm text-muted-foreground">Loading audit trail…</span>
+                </div>
               ) : (
                 <Table>
                   <TableHeader>
@@ -345,6 +383,13 @@ export function ComplianceDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
+                    {(auditData?.auditLogs?.length ?? 0) === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          No audit entries match the selected filters.
+                        </TableCell>
+                      </TableRow>
+                    )}
                     {auditData?.auditLogs?.map((log: AuditLog) => (
                       <TableRow key={log.id}>
                         <TableCell className="text-sm">

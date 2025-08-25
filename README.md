@@ -90,6 +90,28 @@ ComplianceManager/
 └── docs/                # Documentation
 ```
 
+## 🏗️ Architecture Overview
+
+```
+[Client]
+React 18 + Vite + TanStack Query
+   |
+   | HTTP (\n/api/*)
+   v
+[Server]
+Express (server/index.ts)
+  ├─ Auth: Passport + sessions
+  ├─ Routes: server/routes.ts → controllers/*
+  ├─ AI: server/services/aiService.ts (OpenAI)
+  └─ Static: serves dist/public, uploads/ at /uploads
+   |
+   v
+[Data]
+Drizzle ORM (@db) → PostgreSQL (Neon)
+
+Dev: Vite middleware with HMR; Prod: `vite build` → `dist/public` + Node `dist/index.js`.
+```
+
 ## 🔑 Key Features Explained
 
 ### User Roles
@@ -116,7 +138,6 @@ ComplianceManager/
 npm run dev          # Start development server
 npm run build        # Build for production
 npm run db:push      # Apply database schema changes
-npm run db:studio    # Open Drizzle Studio
 npm run check        # TypeScript type checking
 ```
 
@@ -218,11 +239,16 @@ Proprietary - All rights reserved
 
 ## 🤝 Contributing
 
+- See the contributor guide: [AGENTS.md](./AGENTS.md)
+- Review development log and workflows: [CLAUDE.md](./CLAUDE.md)
+- Roadmap context: [IMPROVEMENT_TICKETS.md](./IMPROVEMENT_TICKETS.md) and the "2025 Product Roadmap" section above.
+
 This is a private project. For access or contributions, please contact the repository owner.
 
 ## 📞 Support
 
 For issues or questions:
+- Read the User Guide: [docs/USER_GUIDE.md](./docs/USER_GUIDE.md)
 - Check [TROUBLESHOOTING.md](./migration/TROUBLESHOOTING.md)
 - Review [CLAUDE.md](./CLAUDE.md) for development history
 - Contact repository maintainers

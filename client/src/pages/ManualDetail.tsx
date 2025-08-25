@@ -5,6 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, ArrowLeft, Plus, GripVertical, Loader2, Edit2, Trash2, CheckCircle, AlertCircle, Archive } from "lucide-react";
 import { Link } from "wouter";
+import { 
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -1179,19 +1187,32 @@ export function ManualDetail() {
 
   // Render
   return (
-    <div className="space-y-8 pb-10">
-      {/* Header with gradient background */}
-      <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 shadow-sm relative overflow-hidden">
+    <div className="container max-w-7xl mx-auto px-4 space-y-8 pb-10">
+      {/* Header - neutral SaaS card */}
+      <div className="bg-card border rounded-lg p-6 shadow-sm">
         <div className="relative z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link href="/manuals">
-                <Button variant="outline" size="icon" className="bg-white/80 backdrop-blur-sm hover:bg-white shadow-sm">
+                <Button variant="outline" size="icon">
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
               </Link>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">{manual.title}</h1>
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild>
+                        <Link href="/manuals">Manuals</Link>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>{manual.title}</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
+                <h1 className="text-3xl font-semibold tracking-tight">{manual.title}</h1>
                 <p className="text-muted-foreground mt-1 max-w-2xl">{manual.description}</p>
               </div>
             </div>
@@ -1200,7 +1221,7 @@ export function ManualDetail() {
               {user?.role === 'ADMIN' && (
                 <AlertDialog open={isArchiveOpen} onOpenChange={setIsArchiveOpen}>
                   <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="bg-white/80 backdrop-blur-sm hover:bg-white shadow-sm">
+                    <Button variant="outline">
                       <Archive className="h-4 w-4 mr-2" />
                       Archive Manual
                     </Button>
@@ -1260,15 +1281,30 @@ export function ManualDetail() {
             </div>
           </div>
         </div>
-        {/* Background decorative elements */}
-        <div className="absolute top-0 right-0 -mt-4 -mr-4 opacity-5">
-          <FileText className="h-32 w-32" />
-        </div>
       </div>
 
-      {/* AI Tools Section with Background */}
-      <div className="bg-gradient-to-r from-primary/5 to-background rounded-lg p-4 border border-primary/10">
+      {/* AI Tools Section */}
+      <div className="bg-card rounded-lg p-4 border">
         <PolicyAITools />
+      </div>
+
+      {/* Sticky action bar (desktop) */}
+      <div className="hidden md:block sticky top-16 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="flex items-center justify-between h-12">
+          <div className="truncate text-sm text-muted-foreground">
+            Manual:
+            <span className="ml-2 font-medium text-foreground truncate">{manual.title}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <ExportDialog manualTitle={manual.title} sections={manual.sections} />
+            {user?.role === 'ADMIN' && (
+              <Button variant="outline" size="sm" onClick={() => setIsArchiveOpen(true)}>
+                <Archive className="h-4 w-4 mr-2" />
+                Archive
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="space-y-6">

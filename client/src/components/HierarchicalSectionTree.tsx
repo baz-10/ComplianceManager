@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -184,9 +185,37 @@ function SortableHierarchicalSection({
   const indentationLevel = Math.min(level, 4); // Max 4 levels of visual indentation
   const indentationClass = `ml-${indentationLevel * 6}`;
 
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    // Keyboard support for expand/collapse on tree items
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onToggleCollapse(section.id);
+    }
+    if (e.key === 'ArrowRight') {
+      if (section.isCollapsed && section.children.length > 0) {
+        e.preventDefault();
+        onToggleCollapse(section.id);
+      }
+    }
+    if (e.key === 'ArrowLeft') {
+      if (!section.isCollapsed && section.children.length > 0) {
+        e.preventDefault();
+        onToggleCollapse(section.id);
+      }
+    }
+  };
+
   return (
     <div ref={setNodeRef} style={style} className={`${indentationClass} transition-all duration-200`}>
-      <Card className={`group border-l-4 border-l-primary/30 shadow-sm hover:shadow-md transition-all duration-200 ${isDragging ? 'ring-2 ring-primary/50' : ''}`}>
+      <Card
+        role="treeitem"
+        aria-level={level + 1}
+        aria-expanded={!section.isCollapsed}
+        aria-label={`${section.sectionNumber} ${section.title}`}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        className={`group border-l-4 border-l-primary/30 shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 ${isDragging ? 'ring-2 ring-primary/50' : ''}`}
+      >
         <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent py-3">
           <div className="flex items-center gap-3">
             {/* Drag Handle */}
@@ -404,8 +433,8 @@ function SortableHierarchicalSection({
       </AlertDialog>
 
       {/* Child Sections */}
-      {!section.isCollapsed && section.children.length > 0 && (
-        <div className="mt-2 space-y-2">
+        {!section.isCollapsed && section.children.length > 0 && (
+        <div className="mt-2 space-y-2" role="group" aria-label={`Subsections of ${section.title}`}>
           {section.children.map((childSection) => (
             <SortableHierarchicalSection
               key={childSection.id}
@@ -677,7 +706,7 @@ export function HierarchicalSectionTree({
         items={flatSectionIds}
         strategy={verticalListSortingStrategy}
       >
-        <div className="space-y-2">
+        <div className="space-y-2" role="tree" aria-label="Document sections">
           {/* Root level drop zone */}
           <DropZone
             id="drop-zone-root-start"

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Activity, BookOpen, Home, LogOut, Users, FileText, CheckCircle, Shield, Archive, Plane, Compass, Building2 } from "lucide-react";
+import { Activity, BookOpen, Home, LogOut, Users, FileText, CheckCircle, Shield, Archive, Building2 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 export function Navigation() {
   const [location] = useLocation();
   const { user, logout } = useUser();
+
+  const isActive = (href: string) => {
+    if (href === '/') return location === '/';
+    return location === href || location.startsWith(href + '/');
+  };
 
   const navItems = [
     { href: "/", label: "Home", icon: Home },
@@ -23,6 +28,8 @@ export function Navigation() {
     { href: "/admin/compliance", label: "CASA Compliance", icon: Shield },
     { href: "/admin/archived-manuals", label: "Archived", icon: Archive }
   ];
+
+  const isAdminActive = adminItems.some(item => isActive(item.href));
 
   const handleLogout = async () => {
     try {
@@ -42,64 +49,72 @@ export function Navigation() {
   };
 
   return (
-    <header className="border-b border-purple-100/50 shadow-lg bg-white/90 backdrop-blur-xl sticky top-0 z-50">
+    <header className="border-b bg-background sticky top-0 z-50">
       <div className="container mx-auto px-4">
-        <nav className="flex h-18 items-center gap-8">
-          <div className="text-2xl font-black flightdocs-text-gradient flex items-center gap-3">
-            <div className="relative p-2 rounded-xl flightdocs-card-gradient border border-purple-200/30">
-              <Plane className="h-8 w-8 text-purple-600" />
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
-                <Compass className="h-2 w-2 text-white" />
-              </div>
-            </div>
-            FlightDocs Pro
-            <Badge className="ml-2 px-2 py-1 text-xs glass-card border-purple-200/30">
-              Pro
-            </Badge>
+        <nav role="navigation" aria-label="Primary" className="flex h-16 items-center gap-6">
+          {/* Brand */}
+          <div className="flex items-center gap-2 text-xl font-semibold text-foreground">
+            <FileText className="h-5 w-5 text-primary" aria-hidden="true" />
+            ComplianceManager
+            <Badge variant="secondary" className="ml-1">App</Badge>
           </div>
-          
-          <div className="flex gap-6 ml-8">
+
+          {/* Primary links */}
+          <div className="flex gap-2 ml-2">
             {navItems.map((item) => (
               <Link 
                 key={item.href} 
                 href={item.href}
+                aria-current={isActive(item.href) ? 'page' : undefined}
                 className={cn(
-                  "text-sm font-medium transition-colors hover:text-primary flex items-center gap-2 py-1 px-2 rounded-md",
-                  location === item.href 
+                  "text-sm font-medium transition-colors flex items-center gap-2 py-2 px-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                  isActive(item.href)
                     ? "text-primary bg-primary/10"
-                    : "text-muted-foreground hover:bg-muted"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon className="h-4 w-4" aria-hidden="true" />
                 {item.label}
               </Link>
             ))}
 
+            {/* Admin group */}
             {user?.role === 'ADMIN' && (
-              <>
-                <div className="h-8 w-px bg-border mx-1" />
-                {adminItems.map((item) => (
-                  <Link 
-                    key={item.href} 
-                    href={item.href}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant={isAdminActive ? 'secondary' : 'ghost'}
                     className={cn(
-                      "text-sm font-medium transition-colors hover:text-primary flex items-center gap-2 py-1 px-2 rounded-md",
-                      location === item.href 
-                        ? "text-primary bg-primary/10"
-                        : "text-muted-foreground hover:bg-muted"
+                      "py-2 px-3 text-sm font-medium flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                      isAdminActive && "text-primary"
                     )}
+                    aria-current={isAdminActive ? 'page' : undefined}
+                    aria-label="Admin navigation"
                   >
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
-                ))}
-              </>
+                    <Shield className="h-4 w-4" aria-hidden="true" />
+                    Admin
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuLabel>Admin</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {adminItems.map((item) => (
+                    <Link key={item.href} href={item.href} aria-current={isActive(item.href) ? 'page' : undefined}>
+                      <DropdownMenuItem className={cn(isActive(item.href) && 'text-primary') }>
+                        <item.icon className="h-4 w-4 mr-2" aria-hidden="true" />
+                        {item.label}
+                      </DropdownMenuItem>
+                    </Link>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
-          
+
+          {/* User menu */}
           {user && (
             <div className="ml-auto flex items-center gap-3">
-              <div className="flex flex-col items-end mr-2">
+              <div className="hidden sm:flex flex-col items-end mr-1">
                 <span className="text-sm font-medium">
                   {user.username.split('@')[0]}
                 </span>
@@ -107,7 +122,7 @@ export function Navigation() {
                   {user.role === 'ADMIN' ? (
                     <>
                       <CheckCircle className="h-3 w-3 mr-1 text-primary" />
-                      Administrator
+                      Admin
                     </>
                   ) : user.role === 'EDITOR' ? (
                     <>
@@ -119,10 +134,10 @@ export function Navigation() {
                   )}
                 </span>
               </div>
-              
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 bg-primary/10">
+                  <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className="bg-primary/10 text-primary">
                         {user ? getInitials(user.username) : '?'}

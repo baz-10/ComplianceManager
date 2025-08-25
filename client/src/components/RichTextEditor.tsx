@@ -127,7 +127,7 @@ function MenuBar({ editor }: MenuBarProps) {
   }
 
   return (
-    <div className="border rounded-t-lg p-2 bg-muted/50 space-x-1 flex flex-wrap gap-1">
+    <div className="border-b p-2 bg-muted space-x-1 flex flex-wrap gap-1">
       <Toggle
         size="sm"
         pressed={editor.isActive('bold')}
@@ -321,7 +321,7 @@ export function RichTextEditor({ content, onChange, className }: RichTextEditorP
   });
 
   return (
-    <div className={cn("border rounded-lg", className)}>
+    <div className={cn("bg-card border rounded-lg", className)}>
       <MenuBar editor={editor} />
       <EditorContent
         editor={editor}

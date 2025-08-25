@@ -3,6 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Loader2, Users, FileText, CheckSquare, GitCommit, AlertTriangle } from "lucide-react";
+import { 
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 interface Analytics {
   totalStats: {
@@ -55,8 +63,8 @@ export function AdminDashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="container max-w-7xl mx-auto px-4 min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -64,7 +72,7 @@ export function AdminDashboard() {
   // Ensure we have data before rendering
   if (!analytics) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="container max-w-7xl mx-auto px-4 min-h-[60vh] flex items-center justify-center">
         <p className="text-muted-foreground">No data available</p>
       </div>
     );
@@ -78,9 +86,25 @@ export function AdminDashboard() {
   const sectionStatsData = Array.isArray(analytics.sectionStats) ? analytics.sectionStats : [];
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Policy Compliance Dashboard</h1>
+    <div className="container max-w-7xl mx-auto px-4 space-y-6">
+      <div className="space-y-1">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/">Home</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/admin/dashboard">Admin</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Analytics</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+        <h1 className="text-3xl font-semibold tracking-tight">Policy Compliance Dashboard</h1>
+        <p className="text-sm text-muted-foreground">Overview of policies, acknowledgements, and activity.</p>
       </div>
 
       {/* Overview Statistics */}
