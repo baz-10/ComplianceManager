@@ -57,6 +57,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { RichTextEditor } from "@/components/RichTextEditor";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 // Schema for creating sections
 const createSectionSchema = z.object({
@@ -130,6 +131,7 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
   });
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   if (!onCreatePolicy) {
     return (
@@ -171,30 +173,6 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
           >
             <FormField
               control={form.control}
-              name="aiTopic"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Topic (for AI draft)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Flight Safety" {...field} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="aiContext"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Context (optional)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Audience, scope, constraints…" {...field} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="title"
               render={({ field }) => (
                 <FormItem>
@@ -205,6 +183,86 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
                 </FormItem>
               )}
             />
+
+            {/* AI drafting (optional) */}
+            <Accordion type="single" collapsible>
+              <AccordionItem value="ai-draft">
+                <AccordionTrigger>Use AI to draft (optional)</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-3">
+                    <FormField
+                      control={form.control}
+                      name="aiTopic"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Topic</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., Flight Safety" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="aiContext"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Context</FormLabel>
+                          <FormControl>
+                            <Textarea placeholder="Audience, scope, constraints…" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    {aiError && (
+                      <p className="text-sm text-destructive">{aiError}</p>
+                    )}
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={isGenerating}
+                        onClick={async () => {
+                          const topic = (form.getValues() as any).aiTopic as string;
+                          const context = (form.getValues() as any).aiContext as string;
+                          if (!topic || topic.trim().length === 0) {
+                            setAiError('Topic is required to generate a draft.');
+                            return;
+                          }
+                          setAiError(null);
+                          try {
+                            setIsGenerating(true);
+                            const res = await fetch('/api/policies/generate-draft', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              credentials: 'include',
+                              body: JSON.stringify({ topic, context: context || '' })
+                            });
+                            if (!res.ok) throw new Error(await res.text());
+                            const data = await res.json();
+                            const draft = (data && typeof data.draft === 'string') ? data.draft : '';
+                            if (!draft) {
+                              setAiError('No draft text was returned. Please refine the topic or try again.');
+                            } else {
+                              form.setValue('bodyContent', draft);
+                              toast({ title: 'AI draft added', description: 'Review and edit before saving.' });
+                            }
+                          } catch (err) {
+                            setAiError(err instanceof Error ? err.message : 'Unable to generate draft');
+                            toast({ title: 'Generation failed', description: aiError ?? 'Unable to generate draft', variant: 'destructive' });
+                          } finally {
+                            setIsGenerating(false);
+                          }
+                        }}
+                      >
+                        {isGenerating ? 'Generating…' : 'Generate with AI'}
+                      </Button>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
             <div className="flex items-center justify-between">
               <FormLabel className="text-sm">Content</FormLabel>
               <Button
