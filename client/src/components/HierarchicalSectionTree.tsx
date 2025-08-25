@@ -110,6 +110,8 @@ const createPolicySchema = z.object({
   effectiveDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+  aiTopic: z.string().optional(),
+  aiContext: z.string().optional(),
 });
 
 type CreatePolicyForm = z.infer<typeof createPolicySchema>;
@@ -121,8 +123,12 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
       title: "",
       bodyContent: "",
       effectiveDate: new Date().toISOString().split("T")[0],
+      aiTopic: "",
+      aiContext: "",
     },
   });
+  const { toast } = useToast();
+  const [isGenerating, setIsGenerating] = useState(false);
 
   if (!onCreatePolicy) {
     return (
@@ -158,6 +164,30 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
           >
             <FormField
               control={form.control}
+              name="aiTopic"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Topic (for AI draft)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Flight Safety" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="aiContext"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Context (optional)</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Audience, scope, constraints…" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="title"
               render={({ field }) => (
                 <FormItem>
@@ -170,24 +200,39 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
             />
             <div className="flex items-center justify-between">
               <FormLabel className="text-sm">Content</FormLabel>
-              <Button type="button" variant="ghost" size="sm" onClick={async () => {
-                const topic = window.prompt("Enter policy topic (e.g., Flight Safety)");
-                if (!topic) return;
-                const context = window.prompt("Enter context (e.g., intended audience, scope)") || "";
-                try {
-                  const res = await fetch('/api/policies/generate-draft', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ topic, context })
-                  });
-                  if (!res.ok) throw new Error(await res.text());
-                  const data = await res.json();
-                  form.setValue('bodyContent', data.draft || '');
-                } catch (err) {
-                  console.error('AI generation failed', err);
-                }
-              }}>Generate with AI</Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={isGenerating}
+                onClick={async () => {
+                  const topic = (form.getValues() as any).aiTopic as string;
+                  const context = (form.getValues() as any).aiContext as string;
+                  if (!topic || topic.trim().length === 0) {
+                    toast({ title: 'Topic required', description: 'Enter a topic above before generating.' });
+                    return;
+                  }
+                  try {
+                    setIsGenerating(true);
+                    const res = await fetch('/api/policies/generate-draft', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({ topic, context: context || '' })
+                    });
+                    if (!res.ok) throw new Error(await res.text());
+                    const data = await res.json();
+                    form.setValue('bodyContent', data.draft || '');
+                    toast({ title: 'AI draft added', description: 'Review and edit before saving.' });
+                  } catch (err) {
+                    toast({ title: 'Generation failed', description: err instanceof Error ? err.message : 'Unable to generate draft', variant: 'destructive' });
+                  } finally {
+                    setIsGenerating(false);
+                  }
+                }}
+              >
+                {isGenerating ? 'Generating…' : 'Generate with AI'}
+              </Button>
             </div>
             <FormField
               control={form.control}
