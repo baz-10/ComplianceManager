@@ -58,6 +58,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Switch } from "@/components/ui/switch";
 
 // Schema for creating sections
 const createSectionSchema = z.object({
@@ -113,6 +114,7 @@ const createPolicySchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
   aiTopic: z.string().optional(),
   aiContext: z.string().optional(),
+  publishNow: z.boolean().optional(),
 });
 
 type CreatePolicyForm = z.infer<typeof createPolicySchema>;
@@ -127,6 +129,7 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
       effectiveDate: new Date().toISOString().split("T")[0],
       aiTopic: "",
       aiContext: "",
+      publishNow: false,
     },
   });
   const { toast } = useToast();
@@ -323,6 +326,16 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
                   <FormControl>
                     <Input type="date" {...field} />
                   </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="publishNow"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between">
+                  <FormLabel>Publish now</FormLabel>
+                  <Switch checked={!!field.value} onCheckedChange={field.onChange} />
                 </FormItem>
               )}
             />

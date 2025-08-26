@@ -57,6 +57,7 @@ const createPolicySchema = z.object({
   title: z.string().min(1, "Title is required"),
   bodyContent: z.string().min(1, "Content is required"),
   effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+  publishNow: z.boolean().optional(),
 });
 
 const createSectionSchema = z.object({
@@ -847,7 +848,7 @@ export function ManualDetail() {
           title: formData.title,
           sectionId: sectionId,
           createdById: user.id,
-          status: "DRAFT",
+          status: formData.publishNow ? "LIVE" : "DRAFT",
         },
         version: {
           bodyContent: formData.bodyContent,
