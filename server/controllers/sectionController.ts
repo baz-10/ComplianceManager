@@ -39,7 +39,11 @@ export const SectionController = {
       const allSections = await db.query.sections.findMany({
         where: eq(sections.manualId, parseInt(manualId)),
         with: {
-          policies: true,
+          policies: {
+            with: {
+              currentVersion: true,
+            }
+          },
           createdBy: true
         },
         orderBy: [asc(sections.level), asc(sections.orderIndex)]

@@ -42,18 +42,18 @@ Format your response as a detailed analysis with specific recommendations.`;
   },
 
   async generatePolicyDraft(topic: string, context: string): Promise<string> {
-    const prompt = `Create a comprehensive policy draft for the following topic:
+    const prompt = `Create a comprehensive policy draft for the following topic.
 
 Topic: ${topic}
 Context: ${context}
 
 The policy should include:
-1. Clear objective and scope
-2. Detailed guidelines and procedures
-3. Compliance requirements
-4. Implementation guidance
+1) Clear objective and scope
+2) Detailed guidelines and procedures
+3) Compliance requirements
+4) Implementation guidance
 
-Format the policy in a professional, clear structure.`;
+Return the draft as clean HTML (no <html> or <body> tags), using only these tags: h2, h3, p, ul, ol, li, strong, em, a. Use semantic headings, bullet lists where appropriate, and short paragraphs for readability.`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
@@ -67,7 +67,7 @@ Format the policy in a professional, clear structure.`;
           content: prompt
         }
       ],
-      temperature: 0.7,
+      temperature: 0.5,
       max_tokens: 2000
     });
 

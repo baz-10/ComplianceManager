@@ -874,10 +874,12 @@ export function ManualDetail() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}/sections/hierarchy`] });
+      const createdStatus = data?.policy?.status || 'DRAFT';
       toast({
         title: "Policy Created",
-        description: `"${data.policy.title}" has been created and saved as a draft`,
-        duration: 5000,
+        description: `"${data.policy.title}" created (${createdStatus}).`,
+        duration: 4000,
       });
     },
     onError: (error: Error) => {
