@@ -5,6 +5,8 @@ import Link from '@tiptap/extension-link';
 import TextAlign from '@tiptap/extension-text-align';
 import Image from '@tiptap/extension-image';
 import { Toggle } from "@/components/ui/toggle";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Bold,
   Italic,
@@ -320,6 +322,8 @@ export function RichTextEditor({ content, onChange, className }: RichTextEditorP
     },
   });
 
+  const [isPreview, setIsPreview] = useState(false);
+
   // Sync external content updates (e.g., AI draft) into the editor
   useEffect(() => {
     if (!editor) return;
@@ -329,13 +333,26 @@ export function RichTextEditor({ content, onChange, className }: RichTextEditorP
     }
   }, [content, editor]);
 
+  const previewHtml = editor ? editor.getHTML() : (content || "");
+
   return (
     <div className={cn("bg-card border rounded-lg", className)}>
-      <MenuBar editor={editor} />
-      <EditorContent
-        editor={editor}
-        className="prose prose-sm max-w-none p-4 min-h-[200px] focus-within:outline-none"
-      />
+      {!isPreview && <MenuBar editor={editor} />}
+      <div className="flex items-center justify-end gap-2 px-3 py-2 border-b bg-muted/50">
+        <Label htmlFor="rte-preview" className="text-xs">Preview</Label>
+        <Switch id="rte-preview" checked={isPreview} onCheckedChange={setIsPreview} />
+      </div>
+      {isPreview ? (
+        <div
+          className="prose prose-sm max-w-none p-4"
+          dangerouslySetInnerHTML={{ __html: previewHtml }}
+        />
+      ) : (
+        <EditorContent
+          editor={editor}
+          className="prose prose-sm max-w-none p-4 min-h-[200px] focus-within:outline-none"
+        />
+      )}
     </div>
   );
 }
