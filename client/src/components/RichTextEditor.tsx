@@ -20,6 +20,8 @@ import {
   Heading2,
   ImageIcon,
   Loader2,
+  Copy as CopyIcon,
+  Trash2,
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -323,6 +325,7 @@ export function RichTextEditor({ content, onChange, className }: RichTextEditorP
   });
 
   const [isPreview, setIsPreview] = useState(false);
+  const { toast } = useToast();
 
   // Sync external content updates (e.g., AI draft) into the editor
   useEffect(() => {
@@ -338,9 +341,42 @@ export function RichTextEditor({ content, onChange, className }: RichTextEditorP
   return (
     <div className={cn("bg-card border rounded-lg", className)}>
       {!isPreview && <MenuBar editor={editor} />}
-      <div className="flex items-center justify-end gap-2 px-3 py-2 border-b bg-muted/50">
-        <Label htmlFor="rte-preview" className="text-xs">Preview</Label>
-        <Switch id="rte-preview" checked={isPreview} onCheckedChange={setIsPreview} />
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/50">
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(previewHtml);
+                toast({ title: 'Copied', description: 'HTML copied to clipboard.' });
+              } catch (e) {
+                toast({ title: 'Copy failed', description: 'Unable to copy to clipboard.', variant: 'destructive' });
+              }
+            }}
+            aria-label="Copy HTML"
+          >
+            <CopyIcon className="h-4 w-4 mr-1" /> Copy HTML
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              editor?.commands.setContent('', false);
+              onChange('');
+              toast({ title: 'Cleared', description: 'Editor content cleared.' });
+            }}
+            aria-label="Clear content"
+          >
+            <Trash2 className="h-4 w-4 mr-1" /> Clear
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="rte-preview" className="text-xs">Preview</Label>
+          <Switch id="rte-preview" checked={isPreview} onCheckedChange={setIsPreview} />
+        </div>
       </div>
       {isPreview ? (
         <div
