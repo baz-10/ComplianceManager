@@ -1397,6 +1397,12 @@ export function ManualDetail() {
             onCreatePolicy={async (sectionId, data) => {
               await createPolicy.mutateAsync({ sectionId, formData: data });
             }}
+            onUpdatePolicy={(policyId, data) => {
+              updatePolicy.mutate({ policyId, data });
+            }}
+            onDeletePolicy={(policyId) => {
+              deletePolicy.mutate(policyId);
+            }}
           />
         )}
       </div>

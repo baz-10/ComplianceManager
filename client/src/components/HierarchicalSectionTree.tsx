@@ -103,6 +103,8 @@ interface HierarchicalSectionTreeProps {
   onToggleCollapse: (sectionId: number) => void;
   onReorderSections: (hierarchicalOrder: any[]) => void;
   onCreatePolicy?: (sectionId: number, data: any) => void;
+  onUpdatePolicy?: (policyId: number, data: { title: string; status?: 'DRAFT' | 'LIVE' }) => void;
+  onDeletePolicy?: (policyId: number) => void;
 }
 
 // Simple AddPolicyButton component
@@ -359,6 +361,8 @@ function SortableHierarchicalSection({
   onToggleCollapse,
   onMoveSection,
   onCreatePolicy,
+  onUpdatePolicy,
+  onDeletePolicy,
 }: {
   section: HierarchicalSection;
   level?: number;
@@ -368,6 +372,8 @@ function SortableHierarchicalSection({
   onToggleCollapse: (sectionId: number) => void;
   onMoveSection: (sectionId: number, parentSectionId: number | null, orderIndex: number) => void;
   onCreatePolicy?: (sectionId: number, data: any) => void;
+  onUpdatePolicy?: (policyId: number, data: { title: string; status?: 'DRAFT' | 'LIVE' }) => void;
+  onDeletePolicy?: (policyId: number) => void;
 }) {
   const { user } = useUser();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -610,6 +616,32 @@ function SortableHierarchicalSection({
                     </span>
                     {policy.isAcknowledged && (
                       <CheckCircle className="h-4 w-4 text-green-600" title="Acknowledged" />
+                    )}
+                    {/* Manage actions */}
+                    {(user?.role === 'ADMIN' || user?.role === 'EDITOR') && (
+                      <div className="flex items-center gap-1">
+                        {user?.role === 'ADMIN' && onUpdatePolicy && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={() => onUpdatePolicy(policy.id, { title: policy.title, status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT' })}
+                          >
+                            {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
+                          </Button>
+                        )}
+                        {onDeletePolicy && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                            onClick={() => onDeletePolicy(policy.id)}
+                            title="Delete policy"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
