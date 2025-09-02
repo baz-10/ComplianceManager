@@ -113,6 +113,7 @@ function PolicyRow({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [title, setTitle] = useState(policy.title);
   const [content, setContent] = useState<string>(policy.currentVersion?.bodyContent || "");
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
     <div className="bg-background rounded-lg p-3 border shadow-sm">
@@ -182,7 +183,15 @@ function PolicyRow({
       </div>
       {policy.currentVersion?.bodyContent && (
         <div className="text-sm text-muted-foreground">
-          <div className="prose prose-sm max-w-none line-clamp-3" dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent.substring(0, 200) + '...' }} />
+          <div
+            className={`prose prose-sm max-w-none ${isExpanded ? '' : 'line-clamp-3'}`}
+            dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
+          />
+          <div className="mt-2">
+            <Button variant="link" size="sm" className="px-0" onClick={() => setIsExpanded((v) => !v)}>
+              {isExpanded ? 'Show less' : 'Show more'}
+            </Button>
+          </div>
         </div>
       )}
 
