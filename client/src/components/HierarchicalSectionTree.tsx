@@ -59,6 +59,7 @@ import { useToast } from "@/hooks/use-toast";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
+import { DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 // Schema for creating sections
 const createSectionSchema = z.object({
@@ -93,6 +94,107 @@ interface Policy {
   isAcknowledged?: boolean;
 }
 
+function PolicyRow({
+  policy,
+  canManage,
+  canPublish,
+  onUpdatePolicy,
+  onDeletePolicy,
+}: {
+  policy: Policy;
+  canManage: boolean;
+  canPublish: boolean;
+  onUpdatePolicy?: (policyId: number, data: { title: string; status?: 'DRAFT' | 'LIVE'; bodyContent?: string }) => void;
+  onDeletePolicy?: (policyId: number) => void;
+}) {
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [title, setTitle] = useState(policy.title);
+  const [content, setContent] = useState<string>(policy.currentVersion?.bodyContent || "");
+
+  return (
+    <div className="bg-background rounded-lg p-3 border shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="font-medium text-foreground">{policy.title}</h4>
+        <div className="flex items-center gap-2">
+          <span
+            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+              policy.status === 'LIVE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+            }`}
+          >
+            {policy.status}
+          </span>
+          {canManage && (
+            <>
+              <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setIsEditOpen(true)}>
+                Edit
+              </Button>
+              {canPublish && onUpdatePolicy && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={() => onUpdatePolicy(policy.id, { title: policy.title, status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT' })}
+                >
+                  {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
+                </Button>
+              )}
+              {onDeletePolicy && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                  onClick={() => onDeletePolicy(policy.id)}
+                  title="Delete policy"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+      {policy.currentVersion?.bodyContent && (
+        <div className="text-sm text-muted-foreground">
+          <div className="prose prose-sm max-w-none line-clamp-3" dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent.substring(0, 200) + '...' }} />
+        </div>
+      )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Edit Policy</DialogTitle>
+            <DialogDescription>Update the policy title and content.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 flex-1 overflow-y-auto pr-1">
+            <div className="space-y-2">
+              <FormLabel>Title</FormLabel>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter policy title" />
+            </div>
+            <div className="space-y-2">
+              <FormLabel>Content</FormLabel>
+              <RichTextEditor content={content} onChange={setContent} className="min-h-[250px] max-h-[350px] overflow-y-auto" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+            {onUpdatePolicy && (
+              <Button
+                onClick={() => {
+                  onUpdatePolicy(policy.id, { title, bodyContent: content });
+                  setIsEditOpen(false);
+                }}
+              >
+                Save Changes
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 interface HierarchicalSectionTreeProps {
   sections: HierarchicalSection[];
   manualId: number;
@@ -103,7 +205,7 @@ interface HierarchicalSectionTreeProps {
   onToggleCollapse: (sectionId: number) => void;
   onReorderSections: (hierarchicalOrder: any[]) => void;
   onCreatePolicy?: (sectionId: number, data: any) => void;
-  onUpdatePolicy?: (policyId: number, data: { title: string; status?: 'DRAFT' | 'LIVE' }) => void;
+  onUpdatePolicy?: (policyId: number, data: { title: string; status?: 'DRAFT' | 'LIVE'; bodyContent?: string }) => void;
   onDeletePolicy?: (policyId: number) => void;
 }
 
@@ -372,7 +474,7 @@ function SortableHierarchicalSection({
   onToggleCollapse: (sectionId: number) => void;
   onMoveSection: (sectionId: number, parentSectionId: number | null, orderIndex: number) => void;
   onCreatePolicy?: (sectionId: number, data: any) => void;
-  onUpdatePolicy?: (policyId: number, data: { title: string; status?: 'DRAFT' | 'LIVE' }) => void;
+  onUpdatePolicy?: (policyId: number, data: { title: string; status?: 'DRAFT' | 'LIVE'; bodyContent?: string }) => void;
   onDeletePolicy?: (policyId: number) => void;
 }) {
   const { user } = useUser();
@@ -603,59 +705,14 @@ function SortableHierarchicalSection({
               Policies in this section:
             </div>
             {section.policies.map((policy) => (
-              <div key={policy.id} className="bg-background rounded-lg p-3 border shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-foreground">{policy.title}</h4>
-                  <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      policy.status === 'LIVE' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {policy.status}
-                    </span>
-                    {policy.isAcknowledged && (
-                      <CheckCircle className="h-4 w-4 text-green-600" title="Acknowledged" />
-                    )}
-                    {/* Manage actions */}
-                    {(user?.role === 'ADMIN' || user?.role === 'EDITOR') && (
-                      <div className="flex items-center gap-1">
-                        {user?.role === 'ADMIN' && onUpdatePolicy && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2"
-                            onClick={() => onUpdatePolicy(policy.id, { title: policy.title, status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT' })}
-                          >
-                            {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
-                          </Button>
-                        )}
-                        {onDeletePolicy && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:bg-destructive/10"
-                            onClick={() => onDeletePolicy(policy.id)}
-                            title="Delete policy"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {policy.currentVersion?.bodyContent && (
-                  <div className="text-sm text-muted-foreground">
-                    <div 
-                      className="prose prose-sm max-w-none line-clamp-3"
-                      dangerouslySetInnerHTML={{ 
-                        __html: policy.currentVersion.bodyContent.substring(0, 200) + '...' 
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
+              <PolicyRow
+                key={policy.id}
+                policy={policy}
+                canManage={user?.role === 'ADMIN' || user?.role === 'EDITOR'}
+                canPublish={user?.role === 'ADMIN'}
+                onUpdatePolicy={onUpdatePolicy}
+                onDeletePolicy={onDeletePolicy}
+              />
             ))}
           </CardContent>
         )}
