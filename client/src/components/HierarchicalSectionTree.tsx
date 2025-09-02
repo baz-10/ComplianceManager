@@ -61,6 +61,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Switch } from "@/components/ui/switch";
 import { DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
 
 // Schema for creating sections
 const createSectionSchema = z.object({
@@ -145,37 +147,27 @@ function PolicyRow({
                   {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
                 </Button>
               )}
-              {onDeletePolicy && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-destructive hover:bg-destructive/10"
-                    onClick={() => setIsDeleteOpen(true)}
-                    title="Delete policy"
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" /> Delete
-                  </Button>
-                  <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Policy</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete "{policy.title}"? This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          onClick={() => onDeletePolicy(policy.id)}
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </>
+              {(onDeletePolicy || (canPublish && onUpdatePolicy)) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="More actions">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {canPublish && onUpdatePolicy && (
+                      <DropdownMenuItem onClick={() => onUpdatePolicy(policy.id, { title: policy.title, status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT' })}>
+                        {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
+                      </DropdownMenuItem>
+                    )}
+                    {canPublish && onUpdatePolicy && onDeletePolicy && <DropdownMenuSeparator />}
+                    {onDeletePolicy && (
+                      <DropdownMenuItem className="text-destructive" onClick={() => setIsDeleteOpen(true)}>
+                        Delete policy
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </>
           )}
@@ -241,6 +233,27 @@ function PolicyRow({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Policy</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{policy.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => onDeletePolicy && onDeletePolicy(policy.id)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
