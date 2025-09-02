@@ -109,6 +109,8 @@ function PolicyRow({
   onDeletePolicy?: (policyId: number) => void;
 }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [title, setTitle] = useState(policy.title);
   const [content, setContent] = useState<string>(policy.currentVersion?.bodyContent || "");
 
@@ -116,7 +118,7 @@ function PolicyRow({
     <div className="bg-background rounded-lg p-3 border shadow-sm">
       <div className="flex items-center justify-between mb-2">
         <h4 className="font-medium text-foreground">{policy.title}</h4>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           <span
             className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
               policy.status === 'LIVE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
@@ -124,6 +126,9 @@ function PolicyRow({
           >
             {policy.status}
           </span>
+          <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setIsViewOpen(true)}>
+            View
+          </Button>
           {canManage && (
             <>
               <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setIsEditOpen(true)}>
@@ -140,15 +145,36 @@ function PolicyRow({
                 </Button>
               )}
               {onDeletePolicy && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-destructive hover:bg-destructive/10"
-                  onClick={() => onDeletePolicy(policy.id)}
-                  title="Delete policy"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-destructive hover:bg-destructive/10"
+                    onClick={() => setIsDeleteOpen(true)}
+                    title="Delete policy"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" /> Delete
+                  </Button>
+                  <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Policy</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete "{policy.title}"? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={() => onDeletePolicy(policy.id)}
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </>
               )}
             </>
           )}
@@ -159,6 +185,20 @@ function PolicyRow({
           <div className="prose prose-sm max-w-none line-clamp-3" dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent.substring(0, 200) + '...' }} />
         </div>
       )}
+
+      {/* View Dialog */}
+      <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{policy.title}</DialogTitle>
+            <DialogDescription>Full policy content</DialogDescription>
+          </DialogHeader>
+          <div className="prose prose-sm max-w-none overflow-y-auto pr-1" dangerouslySetInnerHTML={{ __html: content || policy.currentVersion?.bodyContent || '' }} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsViewOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
