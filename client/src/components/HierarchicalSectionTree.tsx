@@ -147,7 +147,18 @@ function PolicyRow({
                   {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
                 </Button>
               )}
-              {(onDeletePolicy || (canPublish && onUpdatePolicy)) && (
+              {/* Always show a visible Delete button when permitted */}
+              {onDeletePolicy && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-destructive hover:bg-destructive/10"
+                  onClick={() => setIsDeleteOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" /> Delete
+                </Button>
+              )}
+              {(canPublish && onUpdatePolicy) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="More actions">
@@ -155,17 +166,9 @@ function PolicyRow({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {canPublish && onUpdatePolicy && (
-                      <DropdownMenuItem onClick={() => onUpdatePolicy(policy.id, { title: policy.title, status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT' })}>
-                        {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
-                      </DropdownMenuItem>
-                    )}
-                    {canPublish && onUpdatePolicy && onDeletePolicy && <DropdownMenuSeparator />}
-                    {onDeletePolicy && (
-                      <DropdownMenuItem className="text-destructive" onClick={() => setIsDeleteOpen(true)}>
-                        Delete policy
-                      </DropdownMenuItem>
-                    )}
+                    <DropdownMenuItem onClick={() => onUpdatePolicy(policy.id, { title: policy.title, status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT' })}>
+                      {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
