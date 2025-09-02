@@ -33,8 +33,17 @@ This guide explains common tasks for Readers, Editors, and Admins.
 
 ## Create and Edit Policies (Editor)
 1. Select a section → Add Policy.
-2. Use the rich text editor; Insert images via Upload (stored under /uploads).
-3. Save drafts; when ready, set status to LIVE (visible to Readers for acknowledgement).
+2. Draft with AI (optional): expand "Use AI to draft", enter Topic/Context → Generate.
+3. Preview: toggle Preview to see rendered HTML; Copy HTML or Clear if needed.
+4. Publish now (optional): enable the switch to create the policy as LIVE.
+5. Save: creates the policy and its first version.
+
+## Manage Policies in Sections (Editor/Admin)
+- View: opens the full policy content.
+- Show more/less: expands/collapses the inline preview.
+- Edit: updates title and content (creates a new version).
+- Publish/Unpublish: Admin only, toggles between DRAFT and LIVE.
+- Delete: removes the policy (with confirmation).
 
 ## Export a Manual (Editor/Admin)
 1. In manual detail, click Export.

@@ -13,9 +13,11 @@ A CASA-compliant document management system for aviation operations manuals, pol
 - **Archive System**: 30-day soft delete with restoration capabilities
 
 ### Recent Additions
+- **AI Policy Drafting**: Topic/Context prompts to generate clean HTML drafts
+- **Editor Preview**: Toggle to preview rendered policy, plus Copy/ Clear actions
+- **Inline Policy Management**: View, Edit, Publish/Unpublish (Admin), Delete
+- **Show more/less**: Expand/collapse policy previews in section tree
 - **Password Reset**: Admin-only password reset functionality
-- **Image Upload**: Rich text editor with image support
-- **Section Management**: Admin ability to delete sections with cascade handling
 - **Analytics Dashboard**: Real-time compliance metrics and user activity tracking
 - **Audit Trail**: Comprehensive logging for CASA compliance
 
@@ -137,7 +139,8 @@ Dev: Vite middleware with HMR; Prod: `vite build` → `dist/public` + Node `dist
 ```bash
 npm run dev          # Start development server
 npm run build        # Build for production
-npm run db:push      # Apply database schema changes
+npm run db:push      # Apply database schema changes (drizzle)
+npm run db:migrate:all # Run SQL migrations (org/sections/cascade)
 npm run check        # TypeScript type checking
 ```
 

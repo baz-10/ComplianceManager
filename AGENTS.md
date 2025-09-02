@@ -14,7 +14,9 @@ Run commands from `ComplianceManager/`.
 - `npm run build`: Build client (Vite) to `dist/public` and server (esbuild) to `dist/`.
 - `npm start`: Run the production build (`node dist/index.js`).
 - `npm run check`: Type-check with TypeScript.
-- `npm run db:push`: Apply Drizzle schema to the database.
+- `npm run db:push`: Apply Drizzle schema to the database (requires updated drizzle-kit).
+- `npm run db:migrate:org|sections|cascade`: Run SQL migrations via `psql`.
+- `npm run db:migrate:all`: Run all SQL migrations sequentially.
 
 ## Coding Style & Naming Conventions
 - Language: TypeScript (strict). Indent with 2 spaces.
@@ -22,6 +24,9 @@ Run commands from `ComplianceManager/`.
 - Server files: camelCase modules (e.g., `manualController.ts`). Prefer named exports.
 - Imports: use aliases `@` (client) and `@db` (server/db) where appropriate.
 - Styling: Tailwind CSS. Keep utility classes readable; extract to components when complex.
+  - UI: neutral SaaS theme; navigation uses active states + aria-current.
+  - RichTextEditor: Preview toggle, Copy HTML, Clear actions.
+  - Section tree: accessible (role=tree/treeitem); inline policy View/Edit/Delete; Admin can Publish.
 
 ## Testing Guidelines
 - No formal test runner is configured yet. Ensure `npm run check` passes and exercise critical flows manually.
@@ -35,4 +40,3 @@ Run commands from `ComplianceManager/`.
 - Create `ComplianceManager/.env` with: `DATABASE_URL`, `OPENAI_API_KEY`, `SESSION_SECRET`. Do not commit secrets.
 - After schema changes, run `npm run db:push` and verify startup logs.
 - Uploaded files are served from `/uploads`; avoid committing local upload artifacts.
-
