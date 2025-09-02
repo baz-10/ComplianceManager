@@ -959,6 +959,7 @@ export function ManualDetail() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}/sections/hierarchy`] });
       toast({
         title: "Policy Updated",
         description: `"${data.title}" has been updated successfully`,
@@ -990,6 +991,7 @@ export function ManualDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}/sections/hierarchy`] });
       toast({
         title: "Policy Deleted",
         description: "The policy has been successfully deleted",

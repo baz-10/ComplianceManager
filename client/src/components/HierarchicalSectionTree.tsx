@@ -60,6 +60,7 @@ import { RichTextEditor } from "@/components/RichTextEditor";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
 import { DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 // Schema for creating sections
 const createSectionSchema = z.object({
@@ -168,11 +169,11 @@ function PolicyRow({
           </DialogHeader>
           <div className="space-y-4 flex-1 overflow-y-auto pr-1">
             <div className="space-y-2">
-              <FormLabel>Title</FormLabel>
+              <Label>Title</Label>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter policy title" />
             </div>
             <div className="space-y-2">
-              <FormLabel>Content</FormLabel>
+              <Label>Content</Label>
               <RichTextEditor content={content} onChange={setContent} className="min-h-[250px] max-h-[350px] overflow-y-auto" />
             </div>
           </div>
