@@ -57,6 +57,13 @@ export const PolicyController = {
 
       const { policy: policyData, version: versionData } = result.data;
 
+      // Get the next order index for this section
+      const existingPolicies = await db.query.policies.findMany({
+        where: eq(policies.sectionId, policyData.sectionId),
+        orderBy: desc(policies.orderIndex)
+      });
+      const nextOrderIndex = existingPolicies.length > 0 ? existingPolicies[0].orderIndex + 1 : 0;
+
       // Create policy
       const [policy] = await db.insert(policies)
         .values({
@@ -64,7 +71,7 @@ export const PolicyController = {
           sectionId: policyData.sectionId,
           status: policyData.status,
           createdById: policyData.createdById,
-          orderIndex: 0, // Will be updated by reorder if needed
+          orderIndex: nextOrderIndex,
         })
         .returning();
 
@@ -311,6 +318,35 @@ export const PolicyController = {
     } catch (error) {
       console.error('Failed to reorder policies:', error);
       res.status(500).json({ error: 'Failed to reorder policies' });
+    }
+  },
+
+  // Utility function to fix orderIndex for existing policies
+  async fixOrderIndices(req: Request, res: Response) {
+    try {
+      const { sectionId } = req.params;
+      
+      // Get all policies in the section ordered by creation time
+      const sectionPolicies = await db.query.policies.findMany({
+        where: eq(policies.sectionId, parseInt(sectionId)),
+        orderBy: [asc(policies.createdAt), asc(policies.id)]
+      });
+
+      // Update each policy with proper order index
+      const updates = sectionPolicies.map((policy, index) =>
+        db.update(policies)
+          .set({ orderIndex: index })
+          .where(eq(policies.id, policy.id))
+      );
+
+      await Promise.all(updates);
+
+      res.json({ 
+        message: `Fixed orderIndex for ${sectionPolicies.length} policies in section ${sectionId}` 
+      });
+    } catch (error) {
+      console.error('Failed to fix order indices:', error);
+      res.status(500).json({ error: 'Failed to fix order indices' });
     }
   }
 };

@@ -43,7 +43,7 @@ export const SectionController = {
             with: {
               currentVersion: true,
             },
-            orderBy: asc(policies.orderIndex)
+            orderBy: [asc(policies.orderIndex), asc(policies.id)]
           },
           createdBy: true
         },
