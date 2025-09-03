@@ -1382,7 +1382,8 @@ export function ManualDetail() {
               createSection.mutate(data);
             }}
             onUpdateSection={(sectionId, data) => {
-              updateSection.mutate({ sectionId, data });
+              // TODO: Implement updateSection mutation
+              console.warn('updateSection not implemented', { sectionId, data });
             }}
             onDeleteSection={(sectionId) => {
               deleteSection.mutate(sectionId);

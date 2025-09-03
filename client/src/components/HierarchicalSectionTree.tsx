@@ -119,9 +119,11 @@ function PolicyRow({
 
   return (
     <div className="bg-background rounded-lg p-3 border shadow-sm">
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="font-medium text-foreground">{policy.title}</h4>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
+      <div className="flex items-start justify-between mb-2 gap-4">
+        <div className="flex-1 min-w-0">
+          <h4 className="font-medium text-foreground truncate">{policy.title}</h4>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
           <span
             className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
               policy.status === 'LIVE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
@@ -155,22 +157,8 @@ function PolicyRow({
                   className="h-7 px-2 text-destructive hover:bg-destructive/10"
                   onClick={() => setIsDeleteOpen(true)}
                 >
-                  <Trash2 className="h-4 w-4 mr-1" /> Delete
+                  <Trash2 className="h-4 w-4" />
                 </Button>
-              )}
-              {(canPublish && onUpdatePolicy) && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="More actions">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onUpdatePolicy(policy.id, { title: policy.title, status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT' })}>
-                      {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               )}
             </>
           )}
