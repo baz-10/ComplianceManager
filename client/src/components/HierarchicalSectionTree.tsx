@@ -110,16 +110,6 @@ function PolicyRow({
   onUpdatePolicy?: (policyId: number, data: { title: string; status?: 'DRAFT' | 'LIVE'; bodyContent?: string }) => void;
   onDeletePolicy?: (policyId: number) => void;
 }) {
-  // DEBUG: Temporary logging to debug delete button visibility
-  console.log('PolicyRow Debug:', {
-    policyId: policy.id,
-    policyTitle: policy.title,
-    canManage,
-    canPublish,
-    hasOnDeletePolicy: !!onDeletePolicy,
-    onDeletePolicyType: typeof onDeletePolicy
-  });
-
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -160,18 +150,9 @@ function PolicyRow({
               <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setIsEditOpen(true)}>
                 Edit
               </Button>
-              {canPublish && onUpdatePolicy && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2"
-                  onClick={() => onUpdatePolicy(policy.id, { title: policy.title, status: policy.status === 'DRAFT' ? 'LIVE' : 'DRAFT' })}
-                >
-                  {policy.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
-                </Button>
-              )}
-              {/* DEBUG: Force show delete button temporarily */}
-              {true && (
+              {/* Publish button removed - using toggle switch instead */}
+              {/* Always show a visible Delete button when permitted */}
+              {onDeletePolicy && (
                 <Button
                   variant="ghost"
                   size="sm"
