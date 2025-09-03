@@ -22,20 +22,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+// Legacy DnD imports removed — HierarchicalSectionTree handles drag-and-drop internally
 import { PolicyAITools } from "@/components/PolicyAITools";
 import {
   AlertDialog,
@@ -957,14 +944,26 @@ export function ManualDetail() {
         return response.json();
       }
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}/sections/hierarchy`] });
-      toast({
-        title: "Policy Updated",
-        description: `"${data.title}" has been updated successfully`,
-        duration: 5000,
-      });
+    onSuccess: (data, variables) => {
+      // For simple status updates, only invalidate hierarchy (faster refresh)
+      if (variables.data.status && !variables.data.bodyContent) {
+        queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}/sections/hierarchy`] });
+        // Show brief success feedback for status toggles
+        toast({
+          title: "Status Updated",
+          description: `Policy is now ${variables.data.status}`,
+          duration: 2000,
+        });
+      } else {
+        // For content updates, do full refresh
+        queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/manuals/${id}/sections/hierarchy`] });
+        toast({
+          title: "Policy Updated",
+          description: `"${data.title}" has been updated successfully`,
+          duration: 5000,
+        });
+      }
     },
     onError: (error) => {
       toast({

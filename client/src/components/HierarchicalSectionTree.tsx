@@ -124,10 +124,6 @@ function PolicyRow({
           <h4 className="font-medium text-foreground truncate">{policy.title}</h4>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          {/* DEBUG: Show what values we're getting */}
-          <div className="text-xs bg-red-100 p-1 rounded">
-            canPublish:{canPublish?.toString()} | hasUpdate:{!!onUpdatePolicy} | hasDelete:{!!onDeletePolicy}
-          </div>
           <span
             className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
               policy.status === 'LIVE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
@@ -136,7 +132,7 @@ function PolicyRow({
           >
             {policy.status}
           </span>
-          {/* DEBUG: Force show toggle */ true && onUpdatePolicy && (
+          {canPublish && onUpdatePolicy && (
             <div className="flex items-center gap-1 ml-1">
               <Label htmlFor={`pub-${policy.id}`} className="text-xs">Published</Label>
               <Switch
@@ -155,8 +151,8 @@ function PolicyRow({
                 Edit
               </Button>
               {/* Publish button removed - using toggle switch instead */}
-              {/* DEBUG: Force show delete button */}
-              {true && (
+              {/* Always show a visible Delete button when permitted */}
+              {onDeletePolicy && (
                 <Button
                   variant="ghost"
                   size="sm"

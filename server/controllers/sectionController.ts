@@ -42,7 +42,8 @@ export const SectionController = {
           policies: {
             with: {
               currentVersion: true,
-            }
+            },
+            orderBy: asc(policies.orderIndex)
           },
           createdBy: true
         },
