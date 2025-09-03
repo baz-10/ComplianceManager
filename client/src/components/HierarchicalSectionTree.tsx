@@ -138,9 +138,20 @@ function PolicyRow({
             className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
               policy.status === 'LIVE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
             }`}
+            title={`Status: ${policy.status}`}
           >
             {policy.status}
           </span>
+          {canPublish && onUpdatePolicy && (
+            <div className="flex items-center gap-1 ml-1">
+              <Label htmlFor={`pub-${policy.id}`} className="text-xs">Published</Label>
+              <Switch
+                id={`pub-${policy.id}`}
+                checked={policy.status === 'LIVE'}
+                onCheckedChange={(checked) => onUpdatePolicy(policy.id, { title: policy.title, status: checked ? 'LIVE' : 'DRAFT' })}
+              />
+            </div>
+          )}
           <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setIsViewOpen(true)}>
             View
           </Button>

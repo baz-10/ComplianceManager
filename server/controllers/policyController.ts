@@ -194,49 +194,11 @@ export const PolicyController = {
     try {
       const { policyId } = req.params;
 
-      // First check if the policy exists
-      const [policy] = await db
-        .select()
-        .from(policies)
-        .where(eq(policies.id, parseInt(policyId)))
-        .limit(1);
-
-      if (!policy) {
+      // Delete the policy row; ON DELETE CASCADE cleans up versions, acknowledgements, annotations
+      const result = await db.delete(policies).where(eq(policies.id, parseInt(policyId))).returning();
+      if (!result || result.length === 0) {
         return res.status(404).json({ error: 'Policy not found' });
       }
-
-      // Begin transaction to ensure all related records are deleted
-      await db.transaction(async (tx) => {
-        // Delete all acknowledgements for all versions of this policy
-        await tx.delete(acknowledgements)
-          .where(
-            eq(acknowledgements.policyVersionId,
-              db.select({ id: policyVersions.id })
-                .from(policyVersions)
-                .where(eq(policyVersions.policyId, parseInt(policyId)))
-                .limit(1)
-            )
-          );
-
-        // Delete all annotations for all versions of this policy
-        await tx.delete(annotations)
-          .where(
-            eq(annotations.policyVersionId,
-              db.select({ id: policyVersions.id })
-                .from(policyVersions)
-                .where(eq(policyVersions.policyId, parseInt(policyId)))
-                .limit(1)
-            )
-          );
-
-        // Delete all versions of this policy
-        await tx.delete(policyVersions)
-          .where(eq(policyVersions.policyId, parseInt(policyId)));
-
-        // Finally delete the policy itself
-        await tx.delete(policies)
-          .where(eq(policies.id, parseInt(policyId)));
-      });
 
       res.json({ message: 'Policy deleted successfully' });
     } catch (error) {

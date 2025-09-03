@@ -74,6 +74,22 @@ export const SectionController = {
         }
       });
 
+      // Filter policies for readers: readers see only LIVE; admins/editors see all
+      const role = (req.user as any)?.role;
+      if (role === 'READER') {
+        const filterPolicies = (nodes: any[]) => {
+          nodes.forEach((node) => {
+            if (Array.isArray(node.policies)) {
+              node.policies = node.policies.filter((p: any) => p.status === 'LIVE');
+            }
+            if (Array.isArray(node.children) && node.children.length > 0) {
+              filterPolicies(node.children);
+            }
+          });
+        };
+        filterPolicies(rootSections);
+      }
+
       res.json(rootSections);
     } catch (error) {
       console.error('Failed to fetch section hierarchy:', error);
