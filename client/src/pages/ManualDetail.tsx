@@ -487,152 +487,7 @@ function SortablePolicy(props: {
   );
 }
 
-function SortableSection({
-  section,
-  sectionIndex,
-  onReorderPolicies,
-  onUpdatePolicy,
-  onDeletePolicy,
-  onCreatePolicy,
-  onDeleteSection,
-}: {
-  section: Section;
-  sectionIndex: number;
-  onReorderPolicies: (sectionId: number, policyIds: number[]) => void;
-  onUpdatePolicy: (policyId: number, data: { title: string; bodyContent?: string; status?: "DRAFT" | "LIVE" }) => void;
-  onDeletePolicy: (policyId: number) => void;
-  onCreatePolicy: (sectionId: number, data: CreatePolicyForm) => void;
-  onDeleteSection: (sectionId: number) => void;
-}) {
-  const { user } = useUser();
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const { attributes, listeners, setNodeRef } = useSortable({ id: section.id });
-  // Only use pointer sensor to avoid keyboard conflicts with input fields
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      // Requires more deliberate drag attempt - prevents accidental dragging
-      activationConstraint: {
-        delay: 150, // 150ms delay
-        tolerance: 5, // 5px movement tolerance before drag starts
-      }
-    })
-    // Temporarily disabled KeyboardSensor to fix spacebar input issue
-    // TODO: Re-enable with proper input field exclusion
-  );
-
-  return (
-    <div ref={setNodeRef} {...attributes} {...listeners}>
-      <Card className="group border-primary/20 shadow-sm hover:shadow-md transition-all duration-200">
-        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
-          <div className="flex items-center gap-3">
-            <span
-              className="cursor-grab opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 p-1.5 rounded-full shadow-sm"
-              {...attributes}
-              {...listeners}
-            >
-              <GripVertical className="h-4 w-4 text-primary" />
-            </span>
-            <div className="bg-primary/10 rounded-full flex items-center justify-center w-8 h-8 shadow-sm">
-              <span className="text-lg font-semibold text-primary">
-                {sectionIndex + 1}
-              </span>
-            </div>
-            <div className="flex-1">
-              <CardTitle className="text-primary">{section.title}</CardTitle>
-              <CardDescription>{section.description}</CardDescription>
-            </div>
-            {user?.role === 'ADMIN' && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsDeleteOpen(true);
-                }}
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {section.policies?.length > 0 && (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={(event) => {
-                const { active, over } = event;
-
-                if (!over || active.id === over.id || !section.policies) {
-                  return;
-                }
-
-                const oldIndex = section.policies.findIndex((policy) => policy.id === active.id);
-                const newIndex = section.policies.findIndex((policy) => policy.id === over.id);
-
-                if (oldIndex !== -1 && newIndex !== -1) {
-                  const newPolicies = arrayMove(section.policies, oldIndex, newIndex);
-                  onReorderPolicies(section.id, newPolicies.map((policy) => policy.id));
-                }
-              }}
-            >
-              <SortableContext
-                items={section.policies.map((p) => p.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="space-y-4">
-                  {section.policies.map((policy, policyIndex) => (
-                    <SortablePolicy
-                      key={policy.id}
-                      policy={policy}
-                      sectionIndex={sectionIndex}
-                      policyIndex={policyIndex}
-                      onUpdatePolicy={onUpdatePolicy}
-                      onDeletePolicy={onDeletePolicy}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-          )}
-          {(!section.policies || section.policies.length === 0) && (
-            <div className="text-center py-4 text-muted-foreground">
-              No policies in this section yet.
-            </div>
-          )}
-          <AddPolicyDialog
-            sectionId={section.id}
-            onSubmit={(data) => onCreatePolicy(section.id, data)}
-          />
-        </CardContent>
-      </Card>
-      
-      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Section</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{section.title}"? This will also delete all policies within this section. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                onDeleteSection(section.id);
-                setIsDeleteOpen(false);
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete Section
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  );
-}
+// Legacy drag and drop components removed - functionality moved to HierarchicalSectionTree
 
 export function ManualDetail() {
   const { id } = useParams();
@@ -643,18 +498,7 @@ export function ManualDetail() {
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [archiveReason, setArchiveReason] = useState("");
 
-  // Only use pointer sensor to avoid keyboard conflicts with input fields
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      // Requires more deliberate drag attempt - prevents accidental dragging
-      activationConstraint: {
-        delay: 150, // 150ms delay
-        tolerance: 5, // 5px movement tolerance before drag starts
-      }
-    })
-    // Temporarily disabled KeyboardSensor to fix spacebar input issue
-    // TODO: Re-enable with proper input field exclusion
-  );
+  // Drag and drop is now handled by HierarchicalSectionTree component
 
   // Initialize form
   const sectionForm = useForm<CreateSectionForm>({
@@ -1120,21 +964,7 @@ export function ManualDetail() {
     },
   });
 
-  const handleDragEnd = (event: any) => {
-    const { active, over } = event;
-
-    if (!over || active.id === over.id || !manual?.sections) {
-      return;
-    }
-
-    const oldIndex = manual.sections.findIndex((section) => section.id === active.id);
-    const newIndex = manual.sections.findIndex((section) => section.id === over.id);
-
-    if (oldIndex !== -1 && newIndex !== -1) {
-      const newSections = arrayMove(manual.sections, oldIndex, newIndex);
-      reorderSections.mutate(newSections.map((section) => section.id));
-    }
-  };
+  // Legacy handleDragEnd removed - drag and drop handled by HierarchicalSectionTree
 
   // Loading and Error States
   if (isLoading) {
