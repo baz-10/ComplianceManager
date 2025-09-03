@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUser } from "@/hooks/use-user";
+import { useLocation } from "wouter";
 import { FileText, CheckCircle, Lock, Mail } from "lucide-react";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { showErrorToast } from "@/utils/errorHandler";
@@ -22,6 +23,7 @@ export function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [error, setError] = useState<any>(null);
   const { login, register } = useUser();
+  const [_, navigate] = useLocation();
 
   const form = useForm<AuthForm>({
     resolver: zodResolver(authSchema),
@@ -36,11 +38,13 @@ export function AuthPage() {
     try {
       if (isLogin) {
         await login(data);
+        navigate("/"); // Redirect to dashboard after successful login
       } else {
         await register({
           ...data,
           role: "READER" // Explicitly set role for new registrations
         });
+        navigate("/"); // Redirect to dashboard after successful registration
       }
     } catch (error: any) {
       setError(error);
