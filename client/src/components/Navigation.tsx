@@ -19,6 +19,7 @@ export function Navigation() {
   const navItems = [
     { href: "/", label: "Home", icon: Home },
     { href: "/manuals", label: "Operations Manual", icon: BookOpen },
+    { href: "/my-compliance", label: "My Required Policies", icon: CheckCircle },
   ];
 
   const adminItems = [

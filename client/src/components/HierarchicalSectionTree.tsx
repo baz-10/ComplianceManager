@@ -95,6 +95,80 @@ interface Policy {
     bodyContent: string;
   };
   isAcknowledged?: boolean;
+  // Compliance tracking flags (provided by backend)
+  read?: boolean;         // viewed current version
+  acked?: boolean;        // acknowledged current version  
+  required?: boolean;     // an assignment exists matching user or role
+}
+
+// Helper function to render compliance badges according to collaboration.md specs
+function ComplianceBadges({ policy }: { policy: Policy }) {
+  const badges = [];
+
+  // Badge rules from collaboration.md:
+  // 1. Status chip: LIVE (green) or DRAFT (amber)
+  badges.push(
+    <span
+      key="status"
+      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+        policy.status === 'LIVE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+      }`}
+      title={`Status: ${policy.status}`}
+    >
+      {policy.status}
+    </span>
+  );
+
+  // 2. If assignment requires acknowledgement for current user
+  if (policy.required === true) {
+    if (policy.acked === true) {
+      badges.push(
+        <span
+          key="acked"
+          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"
+          title="Policy acknowledged"
+        >
+          Acked
+        </span>
+      );
+    } else {
+      badges.push(
+        <span
+          key="ack-required"
+          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+          title="Acknowledgement required"
+        >
+          Ack Required
+        </span>
+      );
+    }
+  } 
+  // 3. Else show Read/Unread for current user (only if no ack badges shown)
+  else {
+    if (policy.read === true) {
+      badges.push(
+        <span
+          key="read"
+          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"
+          title="Policy viewed"
+        >
+          Read
+        </span>
+      );
+    } else if (policy.read === false) {
+      badges.push(
+        <span
+          key="unread"
+          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800"
+          title="Policy not yet viewed"
+        >
+          Unread
+        </span>
+      );
+    }
+  }
+
+  return <div className="flex items-center gap-1">{badges}</div>;
 }
 
 function PolicyRow({
@@ -116,6 +190,39 @@ function PolicyRow({
   const [title, setTitle] = useState(policy.title);
   const [content, setContent] = useState<string>(policy.currentVersion?.bodyContent || "");
   const [isExpanded, setIsExpanded] = useState(false);
+  const [hasTrackedExpansion, setHasTrackedExpansion] = useState(false);
+
+  // Track policy view events
+  const trackPolicyView = async (dwellMs?: number) => {
+    try {
+      await fetch(`/api/policies/${policy.id}/view`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dwellMs }),
+        credentials: 'include',
+      });
+    } catch (error) {
+      console.warn('Failed to track policy view:', error);
+    }
+  };
+
+  // Track view when dialog opens
+  const handleViewOpen = () => {
+    setIsViewOpen(true);
+    trackPolicyView();
+  };
+
+  // Track view when expanding content for first time
+  const handleExpandToggle = () => {
+    const newExpandedState = !isExpanded;
+    setIsExpanded(newExpandedState);
+    
+    // Track view only on first expansion (not collapse)
+    if (newExpandedState && !hasTrackedExpansion) {
+      setHasTrackedExpansion(true);
+      trackPolicyView();
+    }
+  };
 
   return (
     <div className="bg-background rounded-lg p-3 border shadow-sm">
@@ -124,14 +231,7 @@ function PolicyRow({
           <h4 className="font-medium text-foreground truncate">{policy.title}</h4>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          <span
-            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-              policy.status === 'LIVE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-            }`}
-            title={`Status: ${policy.status}`}
-          >
-            {policy.status}
-          </span>
+          <ComplianceBadges policy={policy} />
           {canPublish && onUpdatePolicy && (
             <div className="flex items-center gap-1 ml-1">
               <Label htmlFor={`pub-${policy.id}`} className="text-xs">Published</Label>
@@ -142,7 +242,7 @@ function PolicyRow({
               />
             </div>
           )}
-          <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setIsViewOpen(true)}>
+          <Button variant="ghost" size="sm" className="h-7 px-2" onClick={handleViewOpen}>
             View
           </Button>
           {canManage && (
@@ -173,7 +273,7 @@ function PolicyRow({
             dangerouslySetInnerHTML={{ __html: policy.currentVersion.bodyContent }}
           />
           <div className="mt-2">
-            <Button variant="link" size="sm" className="px-0" onClick={() => setIsExpanded((v) => !v)}>
+            <Button variant="link" size="sm" className="px-0" onClick={handleExpandToggle}>
               {isExpanded ? 'Show less' : 'Show more'}
             </Button>
           </div>
@@ -521,6 +621,8 @@ function SortableHierarchicalSection({
   onCreatePolicy,
   onUpdatePolicy,
   onDeletePolicy,
+  showUnreadOnly = false,
+  onToggleUnreadFilter,
 }: {
   section: HierarchicalSection;
   level?: number;
@@ -532,6 +634,8 @@ function SortableHierarchicalSection({
   onCreatePolicy?: (sectionId: number, data: any) => void;
   onUpdatePolicy?: (policyId: number, data: { title: string; status?: 'DRAFT' | 'LIVE'; bodyContent?: string }) => void;
   onDeletePolicy?: (policyId: number) => void;
+  showUnreadOnly?: boolean;
+  onToggleUnreadFilter?: () => void;
 }) {
   const { user } = useUser();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -565,6 +669,11 @@ function SortableHierarchicalSection({
     form.reset();
     setIsAddSubsectionOpen(false);
   };
+
+  // Filter policies based on "Unread only" setting
+  const filteredPolicies = showUnreadOnly 
+    ? section.policies.filter(policy => policy.read === false)
+    : section.policies;
 
   const indentationLevel = Math.min(level, 4); // Max 4 levels of visual indentation
   const indentationClass = `ml-${indentationLevel * 6}`;
@@ -668,6 +777,25 @@ function SortableHierarchicalSection({
               )}
             </button>
 
+            {/* Unread Only Filter Toggle */}
+            {onToggleUnreadFilter && section.policies.length > 0 && (
+              <div className="flex items-center gap-2 text-sm">
+                <Switch
+                  id={`unread-filter-${section.id}`}
+                  checked={showUnreadOnly}
+                  onCheckedChange={onToggleUnreadFilter}
+                  className="scale-75"
+                />
+                <label 
+                  htmlFor={`unread-filter-${section.id}`} 
+                  className="text-muted-foreground hover:text-primary transition-colors cursor-pointer text-xs"
+                  title="Show only unread policies"
+                >
+                  Unread only
+                </label>
+              </div>
+            )}
+
             {/* Action Buttons */}
             {user?.role !== 'READER' && (
               <div className="flex items-center gap-1">
@@ -760,7 +888,7 @@ function SortableHierarchicalSection({
             <div className="text-sm font-medium text-muted-foreground mb-3">
               Policies in this section:
             </div>
-            {section.policies.map((policy) => (
+            {filteredPolicies.map((policy) => (
               <PolicyRow
                 key={policy.id}
                 policy={policy}
@@ -880,6 +1008,7 @@ export function HierarchicalSectionTree({
   const [activeId, setActiveId] = useState<number | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [draggedSection, setDraggedSection] = useState<HierarchicalSection | null>(null);
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1034,6 +1163,8 @@ export function HierarchicalSectionTree({
             onCreatePolicy={onCreatePolicy}
             onUpdatePolicy={onUpdatePolicy}
             onDeletePolicy={onDeletePolicy}
+            showUnreadOnly={showUnreadOnly}
+            onToggleUnreadFilter={() => setShowUnreadOnly(!showUnreadOnly)}
           />
           
           {/* Drop zone for children */}

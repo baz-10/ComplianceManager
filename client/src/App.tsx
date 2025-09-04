@@ -13,6 +13,7 @@ import { ComplianceDashboard } from "./pages/ComplianceDashboard";
 import { ArchivedManuals } from "./pages/ArchivedManuals";
 import { OrganizationSettings } from "./pages/OrganizationSettings";
 import { AuthPage } from "./pages/AuthPage";
+import { MyCompliance } from "./pages/MyCompliance";
 import { useUser } from "./hooks/use-user";
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
             <Route path="/" component={Dashboard} />
             <Route path="/manuals" component={ManualList} />
             <Route path="/manuals/:id" component={ManualDetail} />
+            <Route path="/my-compliance" component={MyCompliance} />
             {user?.role === 'ADMIN' && (
               <>
                 <Route path="/admin/dashboard" component={AdminDashboard} />
