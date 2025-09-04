@@ -18,10 +18,28 @@ import { useLocation } from "wouter";
 interface ComplianceItem {
   policyId: number;
   title: string;
+  status: 'DRAFT' | 'LIVE';
   currentVersionId: number;
-  status: 'UNREAD' | 'READ' | 'ACKED';
-  requiredBy?: string;
-  live: boolean;
+  manual: {
+    id: number;
+    title: string;
+  };
+  section: {
+    id: number;
+    title: string;
+  };
+  required: boolean;
+  acked: boolean;
+  read: boolean;
+}
+
+interface ComplianceResponse {
+  items: ComplianceItem[];
+  totals: {
+    required: number;
+    acked: number;
+    unread: number;
+  };
 }
 
 export function MyCompliance() {
@@ -29,7 +47,7 @@ export function MyCompliance() {
   const [_, navigate] = useLocation();
 
   // Fetch user's compliance requirements
-  const { data: complianceItems, isLoading, error } = useQuery<ComplianceItem[]>({
+  const { data: complianceData, isLoading, error } = useQuery<ComplianceResponse>({
     queryKey: ['/api/user/compliance'],
     queryFn: async () => {
       const response = await fetch('/api/user/compliance', {
@@ -38,44 +56,72 @@ export function MyCompliance() {
       
       if (!response.ok) {
         // Return mock data if API not implemented yet
-        return [
-          {
-            policyId: 1,
-            title: "Safety Procedures and Guidelines",
-            currentVersionId: 1,
-            status: 'UNREAD' as const,
-            requiredBy: '2024-12-31',
-            live: true
-          },
-          {
-            policyId: 2,
-            title: "Data Protection Policy",
-            currentVersionId: 2,
-            status: 'READ' as const,
-            requiredBy: '2024-11-30',
-            live: true
-          },
-          {
-            policyId: 3,
-            title: "Emergency Response Procedures",
-            currentVersionId: 3,
-            status: 'ACKED' as const,
-            requiredBy: '2024-10-15',
-            live: true
+        return {
+          items: [
+            {
+              policyId: 1,
+              title: "Safety Procedures and Guidelines",
+              status: 'LIVE',
+              currentVersionId: 1,
+              manual: { id: 1, title: "Operations Manual" },
+              section: { id: 1, title: "General Safety" },
+              required: true,
+              acked: false,
+              read: false
+            },
+            {
+              policyId: 2,
+              title: "Data Protection Policy",
+              status: 'LIVE',
+              currentVersionId: 2,
+              manual: { id: 1, title: "Operations Manual" },
+              section: { id: 2, title: "Information Security" },
+              required: true,
+              acked: false,
+              read: true
+            },
+            {
+              policyId: 3,
+              title: "Emergency Response Procedures",
+              status: 'LIVE',
+              currentVersionId: 3,
+              manual: { id: 1, title: "Operations Manual" },
+              section: { id: 3, title: "Emergency Protocols" },
+              required: true,
+              acked: true,
+              read: true
+            }
+          ],
+          totals: {
+            required: 3,
+            acked: 1,
+            unread: 1
           }
-        ] as ComplianceItem[];
+        } as ComplianceResponse;
       }
       
       return response.json();
     }
   });
 
-  // Group items by status for better organization
-  const groupedItems = (complianceItems || []).reduce((acc, item) => {
-    if (!acc[item.status]) {
-      acc[item.status] = [];
+  // Group items by compliance status for better organization  
+  const complianceItems = complianceData?.items || [];
+  const totals = complianceData?.totals || { required: 0, acked: 0, unread: 0 };
+  
+  const groupedItems = complianceItems.reduce((acc, item) => {
+    let status: string;
+    if (item.acked) {
+      status = 'ACKED';
+    } else if (item.read) {
+      status = 'READ';
+    } else {
+      status = 'UNREAD';
     }
-    acc[item.status].push(item);
+    
+    if (!acc[status]) {
+      acc[status] = [];
+    }
+    acc[status].push(item);
     return acc;
   }, {} as Record<string, ComplianceItem[]>);
 
@@ -130,10 +176,9 @@ export function MyCompliance() {
     }
   };
 
-  const handleViewPolicy = (policyId: number) => {
-    // Navigate to the policy view - we'll need to figure out the manual context
-    // For now, just navigate to manuals and let the user find it
-    navigate(`/manuals`);
+  const handleViewPolicy = (item: ComplianceItem) => {
+    // Navigate to the specific manual containing the policy
+    navigate(`/manuals/${item.manual.id}`);
   };
 
   if (isLoading) {
@@ -146,10 +191,10 @@ export function MyCompliance() {
     );
   }
 
-  const totalItems = complianceItems?.length || 0;
-  const unreadCount = groupedItems.UNREAD?.length || 0;
-  const readCount = groupedItems.READ?.length || 0;
-  const ackedCount = groupedItems.ACKED?.length || 0;
+  const totalItems = totals.required;
+  const unreadCount = totals.unread;
+  const readCount = (groupedItems.READ?.length || 0);
+  const ackedCount = totals.acked;
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
@@ -230,11 +275,11 @@ export function MyCompliance() {
       </div>
 
       {/* Compliance Items by Status */}
-      {Object.entries(groupedItems).map(([status, items]) => (
-        <div key={status}>
+      {Object.entries(groupedItems).map(([complianceStatus, items]) => (
+        <div key={complianceStatus}>
           <div className="flex items-center gap-2 mb-4">
-            {getStatusIcon(status)}
-            <h2 className="text-lg font-semibold">{getSectionTitle(status)}</h2>
+            {getStatusIcon(complianceStatus)}
+            <h2 className="text-lg font-semibold">{getSectionTitle(complianceStatus)}</h2>
             <Badge variant="outline">{items.length}</Badge>
           </div>
           
@@ -246,14 +291,9 @@ export function MyCompliance() {
                     <div className="flex-1 min-w-0">
                       <CardTitle className="text-base line-clamp-1">{item.title}</CardTitle>
                       <CardDescription className="flex items-center gap-4 mt-1">
-                        <span>Policy ID: {item.policyId}</span>
-                        {item.requiredBy && (
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            Due: {new Date(item.requiredBy).toLocaleDateString()}
-                          </span>
-                        )}
-                        {!item.live && (
+                        <span>{item.manual.title}</span>
+                        <span>• {item.section.title}</span>
+                        {item.status === 'DRAFT' && (
                           <Badge variant="outline" className="text-xs">
                             Draft
                           </Badge>
@@ -261,7 +301,7 @@ export function MyCompliance() {
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {getStatusBadge(item.status)}
+                      {getStatusBadge(complianceStatus)}
                     </div>
                   </div>
                 </CardHeader>
@@ -273,7 +313,7 @@ export function MyCompliance() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleViewPolicy(item.policyId)}
+                      onClick={() => handleViewPolicy(item)}
                       className="flex items-center gap-1"
                     >
                       View Policy
