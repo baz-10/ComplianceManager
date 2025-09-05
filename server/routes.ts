@@ -60,6 +60,7 @@ export function registerRoutes(app: Express): Server {
   // Section routes
   app.get('/api/manuals/:manualId/sections', isAuthenticated, SectionController.list);
   app.get('/api/manuals/:manualId/sections/hierarchy', isAuthenticated, SectionController.getHierarchy);
+  app.get('/api/debug/sections', isAuthenticated, SectionController.debugSections);
   app.post('/api/sections', isEditorOrAdmin, SectionController.create);
   app.put('/api/sections/:id', isEditorOrAdmin, SectionController.update);
   app.put('/api/sections/:id/move', isEditorOrAdmin, SectionController.moveSection);

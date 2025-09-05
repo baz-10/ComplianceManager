@@ -34,6 +34,7 @@ export const SectionController = {
   async getHierarchy(req: Request, res: Response) {
     try {
       const { manualId } = req.params;
+      console.log('Getting hierarchy for manualId:', manualId);
       
       // Get all sections for the manual
       const allSections = await db.query.sections.findMany({
@@ -49,6 +50,9 @@ export const SectionController = {
         },
         orderBy: [asc(sections.level), asc(sections.orderIndex)]
       });
+
+      console.log(`Found ${allSections.length} sections for manual ${manualId}`);
+      console.log('Raw sections:', allSections.map(s => ({ id: s.id, title: s.title, manualId: s.manualId })));
 
       // Enrich with per-user compliance flags (acked/read) if authenticated
       const userId = (req.user as any)?.id as number | undefined;
@@ -207,6 +211,28 @@ export const SectionController = {
     }
   },
 
+  // Debug endpoint to check all sections in database
+  async debugSections(req: Request, res: Response) {
+    try {
+      const allSections = await db.select().from(sections).orderBy(sections.id);
+      console.log('DEBUG: All sections in database:', allSections.length);
+      res.json({
+        totalSections: allSections.length,
+        sections: allSections.map(s => ({
+          id: s.id,
+          title: s.title,
+          manualId: s.manualId,
+          level: s.level,
+          orderIndex: s.orderIndex,
+          createdAt: s.createdAt
+        }))
+      });
+    } catch (error) {
+      console.error('Failed to get debug sections:', error);
+      res.status(500).json({ error: 'Failed to get debug sections' });
+    }
+  },
+
   async create(req: Request, res: Response) {
     try {
       const result = insertSectionSchema.omit({ 
@@ -267,6 +293,7 @@ export const SectionController = {
         })
         .returning();
 
+      console.log('Created section:', section);
       res.status(201).json(section);
     } catch (error) {
       console.error('Failed to create section:', error);
