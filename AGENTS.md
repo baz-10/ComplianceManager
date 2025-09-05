@@ -36,6 +36,24 @@ Run commands from `ComplianceManager/`.
 - Commits: follow Conventional Commits where practical (`feat:`, `fix:`, `docs:`, `style:`). Keep subjects imperative and concise. Emojis are acceptable but optional.
 - PRs: include a clear summary, linked issues (e.g., `Fixes #123`), screenshots/GIFs for UI changes, test/validation steps, and notes on DB changes (run `npm run db:push`).
 
+## Collaboration
+- Frontend task brief: see `COLLABORATION.md` for badges (Ack/Read), unread filtering, “My Required Policies”, and new compliance endpoints.
+
+## New Backend Endpoints (Compliance)
+- `POST /api/policies/:policyId/acknowledge` (acknowledge current version; back-compat: `/api/versions/:policyVersionId/acknowledge`)
+- `POST /api/policies/:policyId/view` (record view for Read/Unread)
+- `GET /api/user/compliance` (list policies required for current user with `read`, `acked` flags)
+- `POST /api/policies/:policyId/assignments` (Admin; set required targets: ALL/ROLE/USER)
+- `GET /api/policies/:policyId/coverage` (Admin; coverage across assigned users)
+
+## New Backend Endpoint (Import)
+- `POST /api/import` (Admin/Editor): upload DOCX/PDF
+  - Field `document`; form fields: `dryRun`, `granularity` (DOCX h2|h3), `manualTitle`
+  - Returns a preview on dry-run or creates a DRAFT manual on commit
+  - Defaults: DOCX ≤ 20 MB, PDF ≤ 50 MB; override via `IMPORT_MAX_DOCX_MB`, `IMPORT_MAX_PDF_MB`.
+
+Reminder: After pulling schema updates, run `npm run db:push`.
+
 ## Security & Configuration Tips
 - Create `ComplianceManager/.env` with: `DATABASE_URL`, `OPENAI_API_KEY`, `SESSION_SECRET`. Do not commit secrets.
 - After schema changes, run `npm run db:push` and verify startup logs.

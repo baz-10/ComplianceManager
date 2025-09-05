@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '@db';
-import { sections, insertSectionSchema, type User, policies, policyVersions, acknowledgements, annotations, approvalWorkflows, documentSignatures } from '@db/schema';
+import { sections, insertSectionSchema, type User, policies, policyVersions, acknowledgements, annotations, approvalWorkflows, documentSignatures, auditLogs, policyAssignments } from '@db/schema';
 import { eq, inArray, and, isNull, desc, asc } from 'drizzle-orm';
 
 declare module 'express-serve-static-core' {
@@ -50,6 +50,68 @@ export const SectionController = {
         orderBy: [asc(sections.level), asc(sections.orderIndex)]
       });
 
+      // Enrich with per-user compliance flags (acked/read) if authenticated
+      const userId = (req.user as any)?.id as number | undefined;
+      const role = (req.user as any)?.role;
+
+      // Collect ids for batch lookups
+      const currentVersionIds: number[] = [];
+      const policyIds: number[] = [];
+      for (const s of allSections) {
+        for (const p of s.policies) {
+          policyIds.push(p.id);
+          if (p.currentVersionId) currentVersionIds.push(p.currentVersionId);
+        }
+      }
+
+      let ackedSet = new Set<number>();
+      let readSet = new Set<number>();
+      let requiredByPolicyId = new Map<number, boolean>();
+      if (userId && (currentVersionIds.length > 0 || policyIds.length > 0)) {
+        // Fetch acknowledgements for current user on current versions
+        if (currentVersionIds.length > 0) {
+          const userAcks = await db.query.acknowledgements.findMany({
+            where: and(
+              eq(acknowledgements.userId, userId),
+              inArray(acknowledgements.policyVersionId, Array.from(new Set(currentVersionIds)))
+            ),
+            columns: { policyVersionId: true }
+          });
+          ackedSet = new Set(userAcks.map(a => a.policyVersionId));
+        }
+
+        // Fetch simple read flags from audit logs VIEW events
+        // Using raw SQL for efficiency across many ids
+        if (policyIds.length > 0) {
+          const pgIn = Array.from(new Set(policyIds));
+          const userViews = await db.query.auditLogs.findMany({
+            where: and(
+              eq(auditLogs.userId, userId),
+              eq(auditLogs.entityType, 'policy'),
+              eq(auditLogs.action, 'VIEW'),
+              inArray(auditLogs.entityId, pgIn)
+            ),
+            columns: { entityId: true }
+          });
+          readSet = new Set(userViews.map(r => Number(r.entityId)));
+
+          // Fetch assignments and mark required for this user
+          const assigns = await db.query.policyAssignments.findMany({
+            where: inArray(policyAssignments.policyId, pgIn)
+          });
+          for (const pid of pgIn) {
+            const relevant = assigns.filter(a => a.policyId === pid);
+            let isRequired = false;
+            for (const a of relevant) {
+              if (a.targetType === 'ALL') { isRequired = true; break; }
+              if (a.targetType === 'ROLE' && a.role === role) { isRequired = true; break; }
+              if (a.targetType === 'USER' && a.userId === userId) { isRequired = true; break; }
+            }
+            requiredByPolicyId.set(pid, isRequired);
+          }
+        }
+      }
+
       // Build hierarchical structure
       const sectionMap = new Map();
       const rootSections: any[] = [];
@@ -62,9 +124,16 @@ export const SectionController = {
         });
       });
 
-      // Then, build the hierarchy
+      // Then, build the hierarchy and annotate policies
       allSections.forEach(section => {
         const sectionWithChildren = sectionMap.get(section.id);
+        // Annotate each policy with flags
+        sectionWithChildren.policies = sectionWithChildren.policies.map((p: any) => ({
+          ...p,
+          acked: p.currentVersionId ? ackedSet.has(p.currentVersionId) : false,
+          read: readSet.has(p.id),
+          required: requiredByPolicyId.get(p.id) || false
+        }));
         if (section.parentSectionId) {
           const parent = sectionMap.get(section.parentSectionId);
           if (parent) {
@@ -76,7 +145,6 @@ export const SectionController = {
       });
 
       // Filter policies for readers: readers see only LIVE; admins/editors see all
-      const role = (req.user as any)?.role;
       if (role === 'READER') {
         const filterPolicies = (nodes: any[]) => {
           nodes.forEach((node) => {
@@ -141,7 +209,7 @@ export const SectionController = {
 
   async create(req: Request, res: Response) {
     try {
-      const result = insertSectionSchema.safeParse(req.body);
+      const result = insertSectionSchema.omit({ orderIndex: true }).safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: result.error.message });
       }

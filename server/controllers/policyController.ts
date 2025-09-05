@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '@db';
-import { policies, policyVersions, acknowledgements, annotations, type Policy, type User } from '@db/schema';
+import { policies, policyVersions, acknowledgements, annotations, auditLogs, type Policy, type User } from '@db/schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 import { z } from 'zod';
 import { ApiError, sendErrorResponse } from '../utils/errorHandler';
@@ -176,6 +176,12 @@ export const PolicyController = {
         return sendErrorResponse(res, result.error);
       }
 
+      // Fetch existing policy to detect status changes for audit logging
+      const existing = await db.query.policies.findFirst({
+        where: eq(policies.id, parseInt(policyId)),
+        with: { currentVersion: true }
+      });
+
       const [updatedPolicy] = await db
         .update(policies)
         .set({
@@ -188,6 +194,22 @@ export const PolicyController = {
 
       if (!updatedPolicy) {
         throw new ApiError('Policy not found', 404, 'NOT_FOUND');
+      }
+
+      // If status changed, log publish/unpublish event
+      try {
+        if (existing && typeof result.data.status !== 'undefined' && existing.status !== result.data.status) {
+          const action = result.data.status === 'LIVE' ? 'PUBLISH' : 'UNPUBLISH';
+          await AuditService.logEvent(req, 'policy', updatedPolicy.id, action, {
+            previousState: { status: existing.status },
+            newState: { status: updatedPolicy.status, currentVersionId: updatedPolicy.currentVersionId },
+            changeDetails: `Policy status changed to ${updatedPolicy.status}`,
+            severity: 'HIGH',
+            complianceFlags: ['policy_lifecycle']
+          });
+        }
+      } catch (auditError) {
+        console.warn('Failed to log publish/unpublish event:', auditError);
       }
 
       res.json(updatedPolicy);
@@ -216,19 +238,32 @@ export const PolicyController = {
 
   async acknowledge(req: Request, res: Response) {
     try {
-      const { policyId } = req.params;
+      // Support both routes: /policies/:policyId/acknowledge and /versions/:policyVersionId/acknowledge
+      const { policyId, policyVersionId } = req.params as any;
 
       if (!req.user) {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
       // Get the current version of the policy
-      const policy = await db.query.policies.findFirst({
-        where: eq(policies.id, parseInt(policyId)),
-        with: {
-          currentVersion: true
+      let policy: (Policy & { currentVersion?: any }) | null = null;
+      if (policyId) {
+        policy = await db.query.policies.findFirst({
+          where: eq(policies.id, parseInt(policyId)),
+          with: { currentVersion: true }
+        });
+      } else if (policyVersionId) {
+        const version = await db.query.policyVersions.findFirst({
+          where: eq(policyVersions.id, parseInt(policyVersionId)),
+          with: { policy: true }
+        });
+        if (version) {
+          policy = await db.query.policies.findFirst({
+            where: eq(policies.id, version.policyId),
+            with: { currentVersion: true }
+          });
         }
-      });
+      }
 
       if (!policy || !policy.currentVersion) {
         return res.status(404).json({ error: 'Policy or current version not found' });
@@ -271,6 +306,43 @@ export const PolicyController = {
     } catch (error) {
       console.error('Failed to acknowledge policy:', error);
       res.status(500).json({ error: 'Failed to acknowledge policy' });
+    }
+  },
+
+  // Track policy view for read/unread badge via audit log
+  async recordView(req: Request, res: Response) {
+    try {
+      const { policyId } = req.params;
+      const { dwellMs } = req.body || {};
+
+      if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const policy = await db.query.policies.findFirst({
+        where: eq(policies.id, parseInt(policyId)),
+        columns: { id: true, currentVersionId: true, title: true }
+      });
+
+      if (!policy) {
+        return res.status(404).json({ error: 'Policy not found' });
+      }
+
+      // Log a lightweight audit entry instead of a separate policy_views table for now
+      try {
+        await AuditService.logEvent(req, 'policy', policy.id, 'VIEW', {
+          changeDetails: `Viewed policy"${policy.title}"${typeof dwellMs === 'number' ? ` (dwell ${dwellMs}ms)` : ''}`,
+          severity: 'LOW',
+          complianceFlags: ['user_engagement']
+        });
+      } catch (auditError) {
+        console.warn('Failed to log policy view:', auditError);
+      }
+
+      res.json({ ok: true });
+    } catch (error) {
+      console.error('Failed to record policy view:', error);
+      res.status(500).json({ error: 'Failed to record policy view' });
     }
   },
 

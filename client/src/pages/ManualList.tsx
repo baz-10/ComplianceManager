@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Book } from "lucide-react";
+import { Plus, Book, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
@@ -28,6 +28,7 @@ export function ManualList() {
   const queryClient = useQueryClient();
   const { user } = useUser();
   const [search, setSearch] = useState("");
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   const form = useForm<CreateManualForm>({
     resolver: zodResolver(createManualSchema),
@@ -142,13 +143,22 @@ export function ManualList() {
             className="sm:w-64"
           />
           {(user?.role === 'ADMIN' || user?.role === 'EDITOR') && (
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button aria-label="Create new manual">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Manual
-                </Button>
-              </DialogTrigger>
+            <>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowImportDialog(true)}
+                aria-label="Import document"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import Document
+              </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button aria-label="Create new manual">
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Manual
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Create New Manual</DialogTitle>
@@ -191,6 +201,7 @@ export function ManualList() {
                 </Form>
               </DialogContent>
             </Dialog>
+            </>
           )}
         </div>
       </div>
@@ -271,6 +282,35 @@ export function ManualList() {
             </Dialog>
           )}
         </div>
+      )}
+
+      {/* Import Dialog */}
+      {showImportDialog && (
+        <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Import Document</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Import a DOCX or PDF document to automatically create a manual with structured sections and policies.
+              </div>
+              <div className="space-y-2">
+                <Button 
+                  className="w-full justify-start" 
+                  variant="outline"
+                  onClick={() => {
+                    setShowImportDialog(false);
+                    navigate('/import-document');
+                  }}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Start Import Wizard
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

@@ -14,6 +14,7 @@ import { ArchivedManuals } from "./pages/ArchivedManuals";
 import { OrganizationSettings } from "./pages/OrganizationSettings";
 import { AuthPage } from "./pages/AuthPage";
 import { MyCompliance } from "./pages/MyCompliance";
+import { ImportDocument } from "./pages/ImportDocument";
 import { useUser } from "./hooks/use-user";
 
 function App() {
@@ -46,6 +47,9 @@ function App() {
             <Route path="/manuals" component={ManualList} />
             <Route path="/manuals/:id" component={ManualDetail} />
             <Route path="/my-compliance" component={MyCompliance} />
+            {(user?.role === 'ADMIN' || user?.role === 'EDITOR') && (
+              <Route path="/import-document" component={ImportDocument} />
+            )}
             {user?.role === 'ADMIN' && (
               <>
                 <Route path="/admin/dashboard" component={AdminDashboard} />

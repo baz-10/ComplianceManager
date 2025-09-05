@@ -6,6 +6,7 @@ import { z } from "zod";
 // Enums
 export const UserRole = pgEnum("user_role", ["ADMIN", "EDITOR", "READER"]);
 export const Status = pgEnum("status", ["DRAFT", "LIVE"]);
+export const AssignmentTarget = pgEnum("assignment_target", ["ALL", "ROLE", "USER"]);
 
 // Organizations table
 export const organizations = pgTable("organizations", {
@@ -104,6 +105,17 @@ export const acknowledgements = pgTable("acknowledgements", {
   userId: integer("user_id").references(() => users.id).notNull(),
   policyVersionId: integer("policy_version_id").references(() => policyVersions.id).notNull(),
   acknowledgedAt: timestamp("acknowledged_at").defaultNow().notNull()
+});
+
+// Policy Assignments table
+export const policyAssignments = pgTable("policy_assignments", {
+  id: serial("id").primaryKey(),
+  policyId: integer("policy_id").references(() => policies.id).notNull(),
+  targetType: AssignmentTarget("target_type").notNull(), // 'ALL' | 'ROLE' | 'USER'
+  role: UserRole("role"), // used when targetType = 'ROLE'
+  userId: integer("user_id").references(() => users.id), // used when targetType = 'USER'
+  requireAcknowledgement: boolean("require_ack").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
 // Annotations table with fixed circular reference
@@ -273,7 +285,8 @@ export const policiesRelations = relations(policies, ({ one, many }) => ({
   currentVersion: one(policyVersions, {
     fields: [policies.currentVersionId],
     references: [policyVersions.id]
-  })
+  }),
+  assignments: many(policyAssignments)
 }));
 
 export const policyVersionsRelations = relations(policyVersions, ({ one, many }) => ({
@@ -297,6 +310,17 @@ export const acknowledgementsRelations = relations(acknowledgements, ({ one }) =
   policyVersion: one(policyVersions, {
     fields: [acknowledgements.policyVersionId],
     references: [policyVersions.id]
+  })
+}));
+
+export const policyAssignmentsRelations = relations(policyAssignments, ({ one }) => ({
+  policy: one(policies, {
+    fields: [policyAssignments.policyId],
+    references: [policies.id]
+  }),
+  user: one(users, {
+    fields: [policyAssignments.userId],
+    references: [users.id]
   })
 }));
 
@@ -376,3 +400,8 @@ export const insertApprovalWorkflowSchema = createInsertSchema(approvalWorkflows
 export const selectApprovalWorkflowSchema = createSelectSchema(approvalWorkflows);
 export type ApprovalWorkflow = typeof approvalWorkflows.$inferSelect;
 export type NewApprovalWorkflow = typeof approvalWorkflows.$inferInsert;
+
+export const insertPolicyAssignmentSchema = createInsertSchema(policyAssignments);
+export const selectPolicyAssignmentSchema = createSelectSchema(policyAssignments);
+export type PolicyAssignment = typeof policyAssignments.$inferSelect;
+export type NewPolicyAssignment = typeof policyAssignments.$inferInsert;

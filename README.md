@@ -19,7 +19,8 @@ A CASA-compliant document management system for aviation operations manuals, pol
 - **Show more/less**: Expand/collapse policy previews in section tree
 - **Password Reset**: Admin-only password reset functionality
 - **Analytics Dashboard**: Real-time compliance metrics and user activity tracking
-- **Audit Trail**: Comprehensive logging for CASA compliance
+ - **Audit Trail**: Comprehensive logging for CASA compliance
+ - **Document Import (DOCX/PDF)**: Admin/Editor upload with dry-run preview and commit
 
 ## 🛠️ Tech Stack
 
@@ -126,6 +127,8 @@ Dev: Vite middleware with HMR; Prod: `vite build` → `dist/public` + Node `dist
 - **Digital Signatures**: Hash-based content verification
 - **Version Control**: Complete history of all policy changes
 - **Acknowledgments**: Track who has read and accepted policies
+ - **Assignments**: Target ALL/ROLE/USER for required policies and compute coverage
+ - **Read/Unread**: View tracking for current policy version via audit logs
 
 ### Archive System
 - Soft delete with 30-day retention
@@ -148,6 +151,10 @@ npm run check        # TypeScript type checking
 When schema changes are made:
 ```bash
 npm run db:push      # Apply changes to database
+```
+If you have an existing database, apply cascade rules one time:
+```bash
+npm run db:migrate:cascade
 ```
 
 ### Testing (Coming Soon)
@@ -243,6 +250,7 @@ Proprietary - All rights reserved
 ## 🤝 Contributing
 
 - See the contributor guide: [AGENTS.md](./AGENTS.md)
+- Frontend task brief: [COLLABORATION.md](./COLLABORATION.md)
 - Review development log and workflows: [CLAUDE.md](./CLAUDE.md)
 - Roadmap context: [IMPROVEMENT_TICKETS.md](./IMPROVEMENT_TICKETS.md) and the "2025 Product Roadmap" section above.
 
@@ -259,3 +267,9 @@ For issues or questions:
 ---
 
 Built with Claude AI assistance - Last updated: 2025-07-28
+### Import (DOCX/PDF)
+- Endpoint: `POST /api/import` (Admin/Editor)
+  - Field: `document` (DOCX/PDF); form fields: `dryRun=true|false`, `granularity=h2|h3` (DOCX), `manualTitle`
+  - Defaults: DOCX ≤ 20 MB, PDF ≤ 50 MB; override with `IMPORT_MAX_DOCX_MB`, `IMPORT_MAX_PDF_MB`
+  - Requires packages: `mammoth` (DOCX), `pdf-parse` (PDF)
+  - UI: see `COLLABORATION.md` (Import Wizard)

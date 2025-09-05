@@ -10,7 +10,9 @@ import { AIPolicyController } from "./controllers/aiPolicyController";
 import { UserController } from "./controllers/userController";
 import { OrganizationController } from "./controllers/organizationController";
 import { UploadController, upload } from "./controllers/uploadController";
+import { ImportController, docUpload } from "./controllers/importController";
 import { isAdmin, isEditorOrAdmin, isAuthenticated } from "./middleware/roleMiddleware";
+import { ComplianceController } from "./controllers/complianceController";
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes
@@ -73,9 +75,19 @@ export function registerRoutes(app: Express): Server {
   app.delete('/api/policies/:policyId', isEditorOrAdmin, PolicyController.delete);  // New route for deleting policies
   app.post('/api/policies/:policyId/versions', isEditorOrAdmin, PolicyController.createVersion);
   app.get('/api/policies/:policyId/versions', isAuthenticated, PolicyController.getVersionHistory);
+  // Acknowledge current version of a policy
+  app.post('/api/policies/:policyId/acknowledge', isAuthenticated, PolicyController.acknowledge);
+  // Back-compat route (if any callers used version id before)
   app.post('/api/versions/:policyVersionId/acknowledge', isAuthenticated, PolicyController.acknowledge);
+  // Track policy view events for read/unread badges
+  app.post('/api/policies/:policyId/view', isAuthenticated, PolicyController.recordView);
   app.post('/api/sections/:sectionId/policies/reorder', isEditorOrAdmin, PolicyController.reorder);
   app.post('/api/sections/:sectionId/policies/fix-order', isAdmin, PolicyController.fixOrderIndices);
+
+  // Compliance routes
+  app.get('/api/user/compliance', isAuthenticated, ComplianceController.getUserCompliance);
+  app.post('/api/policies/:policyId/assignments', isAdmin, ComplianceController.setPolicyAssignments);
+  app.get('/api/policies/:policyId/coverage', isAdmin, ComplianceController.getPolicyCoverage);
 
   // Annotation routes
   app.get('/api/versions/:policyVersionId/annotations', isAuthenticated, AnnotationController.list);
@@ -86,6 +98,9 @@ export function registerRoutes(app: Express): Server {
   // Upload routes
   app.post('/api/upload/image', isEditorOrAdmin, upload.single('image'), UploadController.uploadImage);
   app.delete('/api/upload/image/:filename', isEditorOrAdmin, UploadController.deleteImage);
+
+  // Document import (Admin/Editor)
+  app.post('/api/import', isEditorOrAdmin, docUpload.single('document'), ImportController.importDocument);
 
   const httpServer = createServer(app);
   return httpServer;
