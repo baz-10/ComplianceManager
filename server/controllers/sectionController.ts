@@ -209,8 +209,17 @@ export const SectionController = {
 
   async create(req: Request, res: Response) {
     try {
-      const result = insertSectionSchema.omit({ orderIndex: true }).safeParse(req.body);
+      const result = insertSectionSchema.omit({ 
+        orderIndex: true,
+        level: true,
+        sectionNumber: true,
+        createdAt: true,
+        updatedAt: true,
+        createdById: true
+      }).safeParse(req.body);
       if (!result.success) {
+        console.error('Section validation failed:', result.error);
+        console.error('Request body:', req.body);
         return res.status(400).json({ error: result.error.message });
       }
 
