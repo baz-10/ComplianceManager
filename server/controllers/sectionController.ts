@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '@db';
-import { sections, insertSectionSchema, type User, policies, policyVersions, acknowledgements, annotations, approvalWorkflows, documentSignatures, auditLogs, policyAssignments } from '@db/schema';
+import { sections, manuals, insertSectionSchema, type User, policies, policyVersions, acknowledgements, annotations, approvalWorkflows, documentSignatures, auditLogs, policyAssignments } from '@db/schema';
 import { eq, inArray, and, isNull, desc, asc } from 'drizzle-orm';
 
 declare module 'express-serve-static-core' {
@@ -35,6 +35,21 @@ export const SectionController = {
     try {
       const { manualId } = req.params;
       console.log('Getting hierarchy for manualId:', manualId);
+      
+      // First verify the manual belongs to the user's organization
+      if (req.user?.organizationId) {
+        const manual = await db.query.manuals.findFirst({
+          where: and(
+            eq(manuals.id, parseInt(manualId)),
+            eq(manuals.organizationId, req.user.organizationId)
+          )
+        });
+        
+        if (!manual) {
+          console.log('Manual not found or access denied for org:', req.user.organizationId);
+          return res.status(404).json({ error: 'Manual not found or access denied' });
+        }
+      }
       
       // Get all sections for the manual
       const allSections = await db.query.sections.findMany({
@@ -214,10 +229,31 @@ export const SectionController = {
   // Debug endpoint to check all sections in database
   async debugSections(req: Request, res: Response) {
     try {
+      // Get all sections
       const allSections = await db.select().from(sections).orderBy(sections.id);
+      
+      // Get all manuals to check organization filtering
+      const allManuals = await db.query.manuals.findMany({
+        with: {
+          sections: true
+        }
+      });
+      
       console.log('DEBUG: All sections in database:', allSections.length);
+      console.log('DEBUG: All manuals with sections:', allManuals.map(m => ({
+        id: m.id, 
+        title: m.title, 
+        organizationId: m.organizationId,
+        sectionsCount: m.sections?.length || 0
+      })));
+      
       res.json({
         totalSections: allSections.length,
+        totalManuals: allManuals.length,
+        user: { 
+          id: (req.user as any)?.id, 
+          organizationId: (req.user as any)?.organizationId 
+        },
         sections: allSections.map(s => ({
           id: s.id,
           title: s.title,
@@ -225,6 +261,12 @@ export const SectionController = {
           level: s.level,
           orderIndex: s.orderIndex,
           createdAt: s.createdAt
+        })),
+        manuals: allManuals.map(m => ({
+          id: m.id,
+          title: m.title,
+          organizationId: m.organizationId,
+          sectionsCount: m.sections?.length || 0
         }))
       });
     } catch (error) {
