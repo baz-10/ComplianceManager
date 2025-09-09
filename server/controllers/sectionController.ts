@@ -143,7 +143,7 @@ export const SectionController = {
         });
       });
 
-      // Then, build the hierarchy and annotate policies
+      // Then, build the hierarchy and annotate policies (robust to orphaned/zero parent ids)
       allSections.forEach(section => {
         const sectionWithChildren = sectionMap.get(section.id);
         // Annotate each policy with flags
@@ -153,10 +153,15 @@ export const SectionController = {
           read: readSet.has(p.id),
           required: requiredByPolicyId.get(p.id) || false
         }));
-        if (section.parentSectionId) {
-          const parent = sectionMap.get(section.parentSectionId);
+
+        const parentId = section.parentSectionId ?? null;
+        if (parentId !== null) {
+          const parent = sectionMap.get(parentId);
           if (parent) {
             parent.children.push(sectionWithChildren);
+          } else {
+            // If parent not found (data inconsistency), treat as root to avoid losing nodes
+            rootSections.push(sectionWithChildren);
           }
         } else {
           rootSections.push(sectionWithChildren);
