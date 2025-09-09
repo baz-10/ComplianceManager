@@ -12,7 +12,8 @@
     "db:migrate:org": "psql \"$DATABASE_URL\" -f db/organizations-migration.sql",
     "db:migrate:sections": "psql \"$DATABASE_URL\" -f db/hierarchical-sections-migration.sql",
     "db:migrate:cascade": "psql \"$DATABASE_URL\" -f db/cascade-delete-migration.sql",
-    "db:migrate:all": "npm run db:migrate:org && npm run db:migrate:sections && npm run db:migrate:cascade"
+    "db:migrate:fix-parents": "psql \"$DATABASE_URL\" -f db/fix-parent-refs-migration.sql",
+    "db:migrate:all": "npm run db:migrate:org && npm run db:migrate:sections && npm run db:migrate:cascade && npm run db:migrate:fix-parents"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
