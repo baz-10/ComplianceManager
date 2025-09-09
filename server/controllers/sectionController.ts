@@ -183,6 +183,13 @@ export const SectionController = {
         filterPolicies(rootSections);
       }
 
+      // Safety net: if we found sections in DB but produced no roots (e.g., bad parent refs),
+      // surface them as top-level to avoid empty UI
+      if (rootSections.length === 0 && allSections.length > 0) {
+        console.warn(`[Sections] No root nodes built for manual ${manualId}, flattening ${allSections.length} sections as roots`);
+        rootSections = allSections.map(s => ({ ...s, children: [] }));
+      }
+
       res.json(rootSections);
     } catch (error) {
       console.error('Failed to fetch section hierarchy:', error);
