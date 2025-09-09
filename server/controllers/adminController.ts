@@ -12,16 +12,31 @@ declare module 'express-serve-static-core' {
 export const AdminController = {
   async getPerformanceMetrics(_req: Request, res: Response) {
     try {
+      const orgId = (res.req.user as any)?.organizationId;
+      if (!orgId) {
+        return res.status(403).json({ error: 'Organization context required' });
+      }
       // Fetch total counts (excluding policies from archived manuals)
       const totalStatsResult = await db.execute(sql`
         SELECT 
           (SELECT COUNT(*) FROM policies p
            JOIN sections s ON s.id = p.section_id
            JOIN manuals m ON m.id = s.manual_id
-           WHERE m.archived_at IS NULL)::int as total_policies,
-          (SELECT COUNT(*) FROM users WHERE role != 'ADMIN')::int as total_users,
-          (SELECT COUNT(*) FROM acknowledgements)::int as total_acknowledgements,
-          (SELECT COUNT(*) FROM policy_versions)::int as total_versions
+           WHERE m.archived_at IS NULL AND m.organization_id = ${orgId})::int as total_policies,
+          (SELECT COUNT(*) FROM users WHERE role != 'ADMIN' AND organization_id = ${orgId})::int as total_users,
+          (SELECT COUNT(*) 
+           FROM acknowledgements a
+           JOIN policy_versions pv ON pv.id = a.policy_version_id
+           JOIN policies p ON p.id = pv.policy_id
+           JOIN sections s ON s.id = p.section_id
+           JOIN manuals m ON m.id = s.manual_id
+           WHERE m.organization_id = ${orgId})::int as total_acknowledgements,
+          (SELECT COUNT(*) 
+           FROM policy_versions pv
+           JOIN policies p ON p.id = pv.policy_id
+           JOIN sections s ON s.id = p.section_id
+           JOIN manuals m ON m.id = s.manual_id
+           WHERE m.organization_id = ${orgId})::int as total_versions
       `);
       const totalStats = totalStatsResult.rows[0];
 
@@ -34,12 +49,13 @@ export const AdminController = {
             COUNT(DISTINCT p.id)::int as total_required,
             COUNT(DISTINCT a.id)::int as total_acknowledged
           FROM users u
-          CROSS JOIN policies p
+          JOIN policies p ON 1=1
           JOIN sections s ON s.id = p.section_id
           JOIN manuals m ON m.id = s.manual_id
           LEFT JOIN policy_versions pv ON pv.policy_id = p.id AND pv.id = p.current_version_id
           LEFT JOIN acknowledgements a ON a.policy_version_id = pv.id AND a.user_id = u.id
-          WHERE u.role != 'ADMIN' AND m.archived_at IS NULL
+          WHERE u.role != 'ADMIN' AND u.organization_id = ${orgId}
+            AND m.archived_at IS NULL AND m.organization_id = ${orgId}
           GROUP BY u.id, u.username
         )
         SELECT 
@@ -65,14 +81,17 @@ export const AdminController = {
           COUNT(DISTINCT a.id)::int as acknowledgement_count,
           s.title as section_title,
           m.title as manual_title,
-          (SELECT COUNT(*)::int FROM users WHERE role != 'ADMIN') as total_users,
-          ROUND((COUNT(DISTINCT a.id)::float / (SELECT COUNT(*)::float FROM users WHERE role != 'ADMIN') * 100)::numeric, 2) as completion_rate
+          (SELECT COUNT(*)::int FROM users WHERE role != 'ADMIN' AND organization_id = ${orgId}) as total_users,
+          ROUND((
+            COUNT(DISTINCT a.id)::float 
+            / (SELECT COUNT(*)::float FROM users WHERE role != 'ADMIN' AND organization_id = ${orgId})
+          ) * 100::numeric, 2) as completion_rate
         FROM policies p 
         LEFT JOIN policy_versions pv ON pv.policy_id = p.id
         LEFT JOIN acknowledgements a ON a.policy_version_id = pv.id
         LEFT JOIN sections s ON p.section_id = s.id
         LEFT JOIN manuals m ON s.manual_id = m.id
-        WHERE m.archived_at IS NULL
+        WHERE m.archived_at IS NULL AND m.organization_id = ${orgId}
         GROUP BY p.id, p.title, s.title, m.title
         ORDER BY completion_rate ASC
         LIMIT 5
@@ -90,6 +109,9 @@ export const AdminController = {
         JOIN users u ON a.user_id = u.id
         JOIN policy_versions pv ON a.policy_version_id = pv.id
         JOIN policies p ON pv.policy_id = p.id
+        JOIN sections s ON s.id = p.section_id
+        JOIN manuals m ON m.id = s.manual_id
+        WHERE m.organization_id = ${orgId}
         ORDER BY a.acknowledged_at DESC
         LIMIT 10
       `);
@@ -110,6 +132,11 @@ export const AdminController = {
         FROM dates
         LEFT JOIN acknowledgements a 
           ON DATE(a.acknowledged_at) = dates.date
+        LEFT JOIN policy_versions pv ON pv.id = a.policy_version_id
+        LEFT JOIN policies p ON p.id = pv.policy_id
+        LEFT JOIN sections s ON s.id = p.section_id
+        LEFT JOIN manuals m ON m.id = s.manual_id
+        WHERE m.organization_id = ${orgId}
         GROUP BY dates.date
         ORDER BY dates.date ASC
       `);
@@ -124,12 +151,13 @@ export const AdminController = {
             m.title as manual_title,
             COUNT(DISTINCT p.id)::int as total_policies,
             COUNT(DISTINCT a.id)::int as total_acknowledgements,
-            (SELECT COUNT(*)::int FROM users WHERE role != 'ADMIN') as total_users
+            (SELECT COUNT(*)::int FROM users WHERE role != 'ADMIN' AND organization_id = ${orgId}) as total_users
           FROM sections s
           JOIN manuals m ON s.manual_id = m.id
           LEFT JOIN policies p ON p.section_id = s.id
           LEFT JOIN policy_versions pv ON pv.policy_id = p.id
           LEFT JOIN acknowledgements a ON a.policy_version_id = pv.id
+          WHERE m.organization_id = ${orgId}
           GROUP BY s.id, s.title, m.title
         )
         SELECT 
@@ -166,6 +194,10 @@ export const AdminController = {
   async getAuditTrail(req: Request, res: Response) {
     try {
       const { page = 1, limit = 50, entityType, action, severity, userId, startDate, endDate } = req.query;
+      const orgId = (req.user as any)?.organizationId;
+      if (!orgId) {
+        return res.status(403).json({ error: 'Organization context required' });
+      }
       
       let whereConditions = [];
       let params: any[] = [];
@@ -197,9 +229,29 @@ export const AdminController = {
         params.push(endDate);
       }
 
+      // Org scoping: restrict to logs tied to this organization
+      const orgParamIndex = paramIndex++;
+      params.push(orgId);
+      const orgScope = `((al.entity_type = 'policy' AND EXISTS (
+          SELECT 1 FROM policies p
+          JOIN sections s ON s.id = p.section_id
+          JOIN manuals m ON m.id = s.manual_id
+          WHERE p.id = al.entity_id AND m.organization_id = $${orgParamIndex}
+        )) OR (al.entity_type = 'policy_version' AND EXISTS (
+          SELECT 1 FROM policy_versions pv
+          JOIN policies p ON p.id = pv.policy_id
+          JOIN sections s ON s.id = p.section_id
+          JOIN manuals m ON m.id = s.manual_id
+          WHERE pv.id = al.entity_id AND m.organization_id = $${orgParamIndex}
+        )) OR (al.entity_type = 'manual' AND EXISTS (
+          SELECT 1 FROM manuals m WHERE m.id = al.entity_id AND m.organization_id = $${orgParamIndex}
+        )) OR (al.user_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM users ux WHERE ux.id = al.user_id AND ux.organization_id = $${orgParamIndex}
+        )))`;
+
       const whereClause = whereConditions.length > 0 
-        ? `WHERE ${whereConditions.join(' AND ')}`
-        : '';
+        ? `WHERE ${whereConditions.join(' AND ')} AND ${orgScope}`
+        : `WHERE ${orgScope}`;
 
       const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
       
@@ -254,6 +306,10 @@ export const AdminController = {
   async getComplianceReport(req: Request, res: Response) {
     try {
       const { startDate, endDate } = req.query;
+      const orgId = (req.user as any)?.organizationId;
+      if (!orgId) {
+        return res.status(403).json({ error: 'Organization context required' });
+      }
       
       // Get compliance overview
       const complianceOverview = await db.execute(sql`
@@ -264,9 +320,20 @@ export const AdminController = {
           COUNT(CASE WHEN action = 'PUBLISH' THEN 1 END)::int as publish_events,
           COUNT(CASE WHEN action = 'ACKNOWLEDGE' THEN 1 END)::int as acknowledgment_events,
           COUNT(CASE WHEN 'casa_compliance' = ANY(compliance_flags) THEN 1 END)::int as casa_events
-        FROM audit_logs
-        WHERE created_at >= COALESCE(${startDate}, CURRENT_DATE - INTERVAL '30 days')
-          AND created_at <= COALESCE(${endDate}, CURRENT_DATE + INTERVAL '1 day')
+        FROM audit_logs al
+        WHERE al.created_at >= COALESCE(${startDate}, CURRENT_DATE - INTERVAL '30 days')
+          AND al.created_at <= COALESCE(${endDate}, CURRENT_DATE + INTERVAL '1 day')
+          AND EXISTS (
+            SELECT 1 FROM policies p
+            JOIN sections s ON s.id = p.section_id
+            JOIN manuals m ON m.id = s.manual_id
+            WHERE (
+              (al.entity_type = 'policy' AND al.entity_id = p.id)
+              OR (al.entity_type = 'policy_version' AND al.entity_id IN (
+                SELECT pv.id FROM policy_versions pv WHERE pv.policy_id = p.id
+              ))
+            ) AND m.organization_id = ${orgId}
+          )
       `);
 
       // Get user activity summary
@@ -281,7 +348,7 @@ export const AdminController = {
         LEFT JOIN audit_logs al ON u.id = al.user_id
           AND al.created_at >= COALESCE(${startDate}, CURRENT_DATE - INTERVAL '30 days')
           AND al.created_at <= COALESCE(${endDate}, CURRENT_DATE + INTERVAL '1 day')
-        WHERE u.role != 'ADMIN'
+        WHERE u.role != 'ADMIN' AND u.organization_id = ${orgId}
         GROUP BY u.id, u.username, u.role
         ORDER BY total_actions DESC
       `);
@@ -308,8 +375,8 @@ export const AdminController = {
         LEFT JOIN policy_versions pv ON p.current_version_id = pv.id
         LEFT JOIN acknowledgements a ON pv.id = a.policy_version_id
         LEFT JOIN audit_logs al ON pv.id = al.entity_id AND al.entity_type = 'policy_version'
-        CROSS JOIN users u
-        WHERE u.role != 'ADMIN' AND p.status = 'LIVE'
+        JOIN users u ON u.role != 'ADMIN' AND u.organization_id = ${orgId}
+        WHERE p.status = 'LIVE' AND m.organization_id = ${orgId}
         GROUP BY p.id, p.title, s.title, m.title
         ORDER BY compliance_percentage ASC
       `);

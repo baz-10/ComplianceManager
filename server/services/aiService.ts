@@ -1,11 +1,15 @@
 import OpenAI from "openai";
 import { type Policy, type PolicyVersion } from "@db/schema";
+import { ApiError } from "../utils/errorHandler";
 
-if (!process.env.OPENAI_API_KEY) {
-  throw new Error("OPENAI_API_KEY is required");
+function getOpenAI(): OpenAI {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) {
+    // Signal to callers that AI is disabled without crashing server startup
+    throw new ApiError("AI features are disabled (missing OPENAI_API_KEY)", 501, "NOT_IMPLEMENTED");
+  }
+  return new OpenAI({ apiKey: key });
 }
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export const AIService = {
   async suggestPolicyImprovements(policy: Policy, version: PolicyVersion): Promise<string> {
@@ -22,7 +26,8 @@ Please provide specific suggestions to:
 
 Format your response as a detailed analysis with specific recommendations.`;
 
-    const completion = await openai.chat.completions.create({
+    const client = getOpenAI();
+    const completion = await client.chat.completions.create({
       model: "gpt-4",
       messages: [
         {
@@ -55,7 +60,8 @@ The policy should include:
 
 Return the draft as clean HTML (no <html> or <body> tags), using only these tags: h2, h3, p, ul, ol, li, strong, em, a. Use semantic headings, bullet lists where appropriate, and short paragraphs for readability.`;
 
-    const completion = await openai.chat.completions.create({
+    const client = getOpenAI();
+    const completion = await client.chat.completions.create({
       model: "gpt-4",
       messages: [
         {

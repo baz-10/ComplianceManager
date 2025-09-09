@@ -22,6 +22,12 @@ Claude will:
 4. ✅ Create manuals, sections, and policies in your database
 5. ✅ Format content for the rich text editor
 
+Alternative: In‑App Import (Admin/Editor)
+- You can also upload DOCX/PDF via the import endpoint:
+  - `POST /api/import` (multipart field `document`, form `dryRun`, `granularity=h2|h3` for DOCX, `manualTitle`)
+  - Dry-run returns a preview tree; commit creates a DRAFT manual
+  - Requires: `npm install mammoth pdf-parse`
+
 ### Step 3: View Results
 ```bash
 npm run dev

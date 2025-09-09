@@ -60,6 +60,10 @@ Suggested Tailwind classes:
      - `required: boolean` — an assignment exists matching user or role
    - Use these to render badges; if a flag is missing (during rollout), default to hiding the badge instead of guessing.
 
+1b) Section policies (flat list): `GET /api/sections/:sectionId/policies`
+   - Readers receive only `LIVE` policies; Admin/Editor receive all
+   - Includes `currentVersion` for rendering content snippets
+
 2) View event: `POST /api/policies/:policyId/view`
    - Records a VIEW in the audit log for read/unread badges (no `policy_views` table yet)
 
@@ -117,7 +121,12 @@ Suggested Tailwind classes:
    - Step 2: Show server preview tree (Manual → Sections → Policies) with counts
      - Allow changing granularity and re-running preview (no re-upload needed if same file held in memory isn’t feasible; re-upload accepted)
    - Step 3: Commit import (POST without dryRun); on success, navigate to the created manual detail
-   - Error handling: surface 413/400/500 with friendly messages
+  - Error handling: surface 413/400/500 with friendly messages
+
+6) Add “Renumber Sections” action (Admin/Editor)
+   - Add a small button in Manual Detail (sections header)
+   - Calls `POST /api/manuals/:manualId/sections/renumber`
+   - On success, refresh hierarchy and toast “Sections renumbered”
 
 ## Acceptance Criteria
 - Reader
@@ -130,12 +139,14 @@ Suggested Tailwind classes:
   - Sees Published switch, Delete, Edit, View, and badges
   - “Unread only” toggle filters policies for the current user
   - Can import DOCX/PDF, preview structure, and commit to create DRAFT manual
+  - Can trigger “Renumber Sections” to normalize numbering after large edits
 
 ## Notes & Edge Cases
 - Version-awareness: Read/Unread is scoped to current policy version; a new published version resets Read to Unread
 - If backend flags are missing temporarily, hide badges rather than guessing from client data
 - Keep actions keyboard-accessible; current tree already has ARIA roles
 - Import: scanned PDFs produce low-fidelity text; UI should warn when preview is very sparse and suggest CLI migration or OCR
+ - Reorder: numbers are auto‑normalized after drag‑and‑drop; the manual “Renumber Sections” action is an explicit repair tool for complex edits/imports
 
 ## Out of Scope (for now)
 - Admin assignment drawer UI (create/edit assignments and reminders)

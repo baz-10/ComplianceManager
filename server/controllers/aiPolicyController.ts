@@ -4,6 +4,7 @@ import { policies, policyVersions } from '@db/schema';
 import { eq } from 'drizzle-orm';
 import { AIService } from '../services/aiService';
 import { z } from 'zod';
+import { sendErrorResponse } from '../utils/errorHandler';
 
 const generatePolicySchema = z.object({
   topic: z.string().min(1, "Topic is required"),
@@ -30,7 +31,7 @@ export const AIPolicyController = {
       res.json({ suggestions });
     } catch (error) {
       console.error('Error generating suggestions:', error);
-      res.status(500).json({ error: 'Failed to generate policy suggestions' });
+      sendErrorResponse(res, error);
     }
   },
 
@@ -46,7 +47,7 @@ export const AIPolicyController = {
       res.json({ draft });
     } catch (error) {
       console.error('Error generating draft:', error);
-      res.status(500).json({ error: 'Failed to generate policy draft' });
+      sendErrorResponse(res, error);
     }
   }
 };

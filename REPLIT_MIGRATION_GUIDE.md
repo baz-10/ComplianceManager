@@ -8,16 +8,26 @@ Since your database is already on Replit, the easiest approach is to run the mig
 1. Go to your Replit project where ComplianceManager is deployed
 2. Open the **Shell** tab at the bottom
 
-### Step 2: Run Migration Commands
+### Step 2: Install Parsers (for import)
+If you plan to use the in-app import or parsing scripts:
+```bash
+npm install mammoth pdf-parse
+```
+
+### Step 3: Run Migration or Use Import Endpoint
 ```bash
 # Test database connection first
 npx tsx migration/scripts/test-db-connection.js
 
-# If connection works, run the migration
+# Option A: Run the structured PDF migration (example data)
 npx tsx migration/scripts/read-and-migrate-pdfs.js
+
+# Option B: Use the in-app import (Admin/Editor)
+# Send a DOCX/PDF to /api/import (multipart form)
+# Tip: Use a REST client (Insomnia/Postman) or the upcoming Import Wizard UI
 ```
 
-### Step 3: Verify Migration
+### Step 4: Verify Migration
 1. Open your app in Replit
 2. Navigate to `/manuals`
 3. You should see the imported Operational Procedures Manual
@@ -39,6 +49,7 @@ npx tsx migration/scripts/read-and-migrate-pdfs.js
    ```
 4. Run `npm run db:push` to create tables
 5. Run migration scripts
+6. Install parsers if you want to import DOCX/PDF: `npm install mammoth pdf-parse`
 
 ## 📝 What the Migration Does
 
@@ -67,6 +78,12 @@ Make sure to run `npm install` first
 
 ### "Table does not exist"
 Run `npm run db:push` to create database schema
+
+### "Cannot find module 'mammoth' or 'pdf-parse'"
+Install parsers:
+```bash
+npm install mammoth pdf-parse
+```
 
 ## 💡 Pro Tip: PDF Content Extraction
 

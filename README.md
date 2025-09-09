@@ -21,6 +21,9 @@ A CASA-compliant document management system for aviation operations manuals, pol
 - **Analytics Dashboard**: Real-time compliance metrics and user activity tracking
  - **Audit Trail**: Comprehensive logging for CASA compliance
  - **Document Import (DOCX/PDF)**: Admin/Editor upload with dry-run preview and commit
+ - **Org‑Scoped Analytics**: Admin analytics now scoped to the current organization
+ - **Auto Renumbering**: Sections are renumbered automatically after drag‑and‑drop reorder
+ - **AI Optional**: If no OpenAI key is configured, AI endpoints respond 501 (not implemented)
 
 ## 🛠️ Tech Stack
 
@@ -54,7 +57,10 @@ A CASA-compliant document management system for aviation operations manuals, pol
    ```bash
    # Create .env file with:
    DATABASE_URL="postgresql://[username]:[password]@[endpoint]/[database]?sslmode=require"
-   OPENAI_API_KEY="your-openai-key"
+   # Optional: AI features (omit to disable AI)
+   # OPENAI_API_KEY="your-openai-key"
+   
+   # Sessions (required)
    SESSION_SECRET="your-session-secret-min-32-chars"
    ```
 
@@ -129,6 +135,8 @@ Dev: Vite middleware with HMR; Prod: `vite build` → `dist/public` + Node `dist
 - **Acknowledgments**: Track who has read and accepted policies
  - **Assignments**: Target ALL/ROLE/USER for required policies and compute coverage
  - **Read/Unread**: View tracking for current policy version via audit logs
+- **Org‑Scoped Analytics**: All admin metrics are restricted to the current org
+ - **Org‑Scoped Audit Trail**: Audit log views are restricted to entities/users within your organization
 
 ### Archive System
 - Soft delete with 30-day retention
@@ -137,6 +145,11 @@ Dev: Vite middleware with HMR; Prod: `vite build` → `dist/public` + Node `dist
 - Audit logging of all archive operations
 
 ## 🔧 Development
+
+### Role‑Based Visibility Notes
+- Readers see only `LIVE` policies via both hierarchy and section policy list APIs.
+- Admins/Editors see both `DRAFT` and `LIVE` items.
+- After section drag‑and‑drop, numbering is normalized automatically.
 
 ### Available Scripts
 ```bash
@@ -156,6 +169,9 @@ If you have an existing database, apply cascade rules one time:
 ```bash
 npm run db:migrate:cascade
 ```
+
+### After Restart / Pull
+See `docs/POST_RESTART.md` for a concise checklist to get running again.
 
 ### Testing (Coming Soon)
 ```bash
@@ -270,6 +286,8 @@ Built with Claude AI assistance - Last updated: 2025-07-28
 ### Import (DOCX/PDF)
 - Endpoint: `POST /api/import` (Admin/Editor)
   - Field: `document` (DOCX/PDF); form fields: `dryRun=true|false`, `granularity=h2|h3` (DOCX), `manualTitle`
+7. **After Updates/Restart**
+   - See `docs/POST_RESTART.md` for the quick checklist (npm install, db:push, restart, verify).
   - Defaults: DOCX ≤ 20 MB, PDF ≤ 50 MB; override with `IMPORT_MAX_DOCX_MB`, `IMPORT_MAX_PDF_MB`
   - Requires packages: `mammoth` (DOCX), `pdf-parse` (PDF)
   - UI: see `COLLABORATION.md` (Import Wizard)

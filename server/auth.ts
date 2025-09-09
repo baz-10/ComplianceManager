@@ -5,9 +5,10 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { users, organizations, insertUserSchema, type User } from "@db/schema";
+import { users, organizations, type User } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 
 const scryptAsync = promisify(scrypt);
 const crypto = {
@@ -37,10 +38,14 @@ declare global {
 export function setupAuth(app: Express) {
   const MemoryStore = createMemoryStore(session);
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.REPL_ID || "document-management-secret",
+    // Prefer SESSION_SECRET per repo docs; fall back to a dev-friendly default
+    secret: process.env.SESSION_SECRET || process.env.REPL_ID || "document-management-secret",
     resave: false,
     saveUninitialized: false,
-    cookie: {},
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+    },
     store: new MemoryStore({
       checkPeriod: 86400000,
     }),
@@ -49,8 +54,10 @@ export function setupAuth(app: Express) {
   if (app.get("env") === "production") {
     app.set("trust proxy", 1);
     sessionSettings.cookie = {
+      ...(sessionSettings.cookie || {}),
       secure: true,
-    };
+      sameSite: "lax",
+    } as session.CookieOptions;
   }
 
   app.use(session(sessionSettings));
@@ -99,9 +106,15 @@ export function setupAuth(app: Express) {
     }
   });
 
+  // Minimal, public-facing registration schema
+  const registerSchema = z.object({
+    username: z.string().email("Username must be a valid email"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+  });
+
   app.post("/api/register", async (req, res, next) => {
     try {
-      const result = insertUserSchema.safeParse(req.body);
+      const result = registerSchema.safeParse(req.body);
       if (!result.success) {
         return res
           .status(400)

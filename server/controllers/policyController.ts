@@ -31,8 +31,12 @@ export const PolicyController = {
   async list(req: Request, res: Response) {
     try {
       const { sectionId } = req.params;
+      const isReader = (req.user as any)?.role === 'READER';
+      const whereClause = isReader
+        ? and(eq(policies.sectionId, parseInt(sectionId)), eq(policies.status, 'LIVE'))
+        : eq(policies.sectionId, parseInt(sectionId));
       const allPolicies = await db.query.policies.findMany({
-        where: eq(policies.sectionId, parseInt(sectionId)),
+        where: whereClause,
         with: {
           currentVersion: true,
           createdBy: true

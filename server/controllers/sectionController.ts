@@ -677,7 +677,48 @@ export const SectionController = {
       const allUpdates = await updateSectionOrder(hierarchicalOrder);
       await Promise.all(allUpdates);
 
-      res.json({ message: 'Sections reordered successfully' });
+      // Normalize numbering after reparent/reorder to ensure consistency
+      const allSections = await db.query.sections.findMany({
+        where: eq(sections.manualId, parseInt(manualId)),
+        orderBy: [asc(sections.level), asc(sections.orderIndex)]
+      });
+
+      const renumberSections = async (parentId: number | null = null, level: number = 0, parentNumber: string = '') => {
+        const sectionsAtLevel = allSections.filter(s => 
+          s.parentSectionId === parentId && s.level === level
+        );
+
+        const updates = [] as any[];
+        for (let i = 0; i < sectionsAtLevel.length; i++) {
+          const section = sectionsAtLevel[i];
+          let newSectionNumber: string;
+          if (level === 0) {
+            newSectionNumber = `${i + 1}.0`;
+          } else {
+            const baseNumber = parentNumber.replace('.0', '');
+            newSectionNumber = `${baseNumber}.${i + 1}`;
+          }
+
+          updates.push(
+            db.update(sections)
+              .set({
+                sectionNumber: newSectionNumber,
+                orderIndex: i,
+                updatedAt: new Date()
+              })
+              .where(eq(sections.id, section.id))
+          );
+
+          const childUpdates = await renumberSections(section.id, level + 1, newSectionNumber);
+          updates.push(...childUpdates);
+        }
+        return updates;
+      };
+
+      const numberingUpdates = await renumberSections();
+      await Promise.all(numberingUpdates);
+
+      res.json({ message: 'Sections reordered and renumbered successfully' });
     } catch (error) {
       console.error('Failed to reorder sections:', error);
       res.status(500).json({ error: 'Failed to reorder sections' });
