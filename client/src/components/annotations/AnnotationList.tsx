@@ -2,14 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDistance } from "date-fns";
-import { type Annotation } from "@db/schema";
+import type { AnnotationThread } from "@/types/annotations";
 
 interface Props {
   policyVersionId: number;
 }
 
 export function AnnotationList({ policyVersionId }: Props) {
-  const { data: annotations, isLoading } = useQuery<Annotation[]>({
+  const { data: annotations, isLoading } = useQuery<AnnotationThread[]>({
     queryKey: [`/api/versions/${policyVersionId}/annotations`],
   });
 

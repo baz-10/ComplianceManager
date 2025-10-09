@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '@db';
 import { manuals, sections, insertManualSchema, type User, auditLogs } from '@db/schema';
-import { eq, isNull, isNotNull, and, sql } from 'drizzle-orm';
+import { eq, isNull, isNotNull, and } from 'drizzle-orm';
 import { ApiError, sendErrorResponse } from '../utils/errorHandler';
 
 declare module 'express-serve-static-core' {
@@ -109,13 +109,20 @@ export const ManualController = {
         throw new ApiError('Authentication required', 401, 'UNAUTHORIZED');
       }
 
+      if (!req.user.organizationId) {
+        throw new ApiError('Organization context required', 403, 'FORBIDDEN');
+      }
+
       if (!reason || reason.trim().length === 0) {
         throw new ApiError('Archive reason is required', 400, 'VALIDATION_ERROR', 'reason');
       }
 
       // Check if manual exists and is not already archived
       const manual = await db.query.manuals.findFirst({
-        where: eq(manuals.id, parseInt(id))
+        where: and(
+          eq(manuals.id, parseInt(id)),
+          eq(manuals.organizationId, req.user.organizationId)
+        )
       });
 
       if (!manual) {
@@ -134,7 +141,10 @@ export const ManualController = {
           archiveReason: reason,
           updatedAt: new Date()
         })
-        .where(eq(manuals.id, parseInt(id)))
+        .where(and(
+          eq(manuals.id, parseInt(id)),
+          eq(manuals.organizationId, req.user.organizationId)
+        ))
         .returning();
 
       // Log the archive action
@@ -168,9 +178,16 @@ export const ManualController = {
         throw new ApiError('Authentication required', 401, 'UNAUTHORIZED');
       }
 
+      if (!req.user.organizationId) {
+        throw new ApiError('Organization context required', 403, 'FORBIDDEN');
+      }
+
       // Check if manual exists and is archived
       const manual = await db.query.manuals.findFirst({
-        where: eq(manuals.id, parseInt(id))
+        where: and(
+          eq(manuals.id, parseInt(id)),
+          eq(manuals.organizationId, req.user.organizationId)
+        )
       });
 
       if (!manual) {
@@ -189,7 +206,10 @@ export const ManualController = {
           archiveReason: null,
           updatedAt: new Date()
         })
-        .where(eq(manuals.id, parseInt(id)))
+        .where(and(
+          eq(manuals.id, parseInt(id)),
+          eq(manuals.organizationId, req.user.organizationId)
+        ))
         .returning();
 
       // Log the restore action
@@ -216,8 +236,15 @@ export const ManualController = {
 
   async listArchived(req: Request, res: Response) {
     try {
+      if (!req.user?.organizationId) {
+        return res.status(403).json({ error: 'Organization context required' });
+      }
+
       const archivedManuals = await db.query.manuals.findMany({
-        where: isNotNull(manuals.archivedAt),
+        where: and(
+          isNotNull(manuals.archivedAt),
+          eq(manuals.organizationId, req.user.organizationId)
+        ),
         with: {
           archivedBy: true,
           createdBy: true
@@ -252,9 +279,16 @@ export const ManualController = {
         throw new ApiError('Authentication required', 401, 'UNAUTHORIZED');
       }
 
+      if (!req.user.organizationId) {
+        throw new ApiError('Organization context required', 403, 'FORBIDDEN');
+      }
+
       // Check if manual exists and can be permanently deleted
       const manual = await db.query.manuals.findFirst({
-        where: eq(manuals.id, parseInt(id))
+        where: and(
+          eq(manuals.id, parseInt(id)),
+          eq(manuals.organizationId, req.user.organizationId)
+        )
       });
 
       if (!manual) {
@@ -279,7 +313,10 @@ export const ManualController = {
 
       // Permanently delete the manual
       const [deletedManual] = await db.delete(manuals)
-        .where(eq(manuals.id, parseInt(id)))
+        .where(and(
+          eq(manuals.id, parseInt(id)),
+          eq(manuals.organizationId, req.user.organizationId)
+        ))
         .returning();
 
       // Log the permanent deletion

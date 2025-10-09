@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import type { NewAnnotation } from "@db/schema";
+import type { AnnotationThread, CreateAnnotationPayload } from "@/types/annotations";
 
 interface Props {
   policyVersionId: number;
@@ -18,8 +18,8 @@ export function AddAnnotation({ policyVersionId, selectedText, startOffset, endO
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { mutate: addAnnotation, isPending } = useMutation({
-    mutationFn: async (data: NewAnnotation) => {
+  const { mutate: addAnnotation, isPending } = useMutation<AnnotationThread, Error, CreateAnnotationPayload>({
+    mutationFn: async (data) => {
       const response = await fetch("/api/annotations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

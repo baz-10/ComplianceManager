@@ -30,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 interface MenuBarProps {
-  editor: Editor;
+  editor: Editor | null;
 }
 
 function MenuBar({ editor }: MenuBarProps) {
@@ -39,6 +39,10 @@ function MenuBar({ editor }: MenuBarProps) {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  if (!editor) {
+    return null;
+  }
 
   const addLink = () => {
     if (linkUrl) {
