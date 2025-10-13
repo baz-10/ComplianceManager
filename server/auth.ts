@@ -9,6 +9,7 @@ import { users, organizations, type User } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { env } from "./config/environment.ts";
 
 const scryptAsync = promisify(scrypt);
 const crypto = {
@@ -38,8 +39,7 @@ declare global {
 export function setupAuth(app: Express) {
   const MemoryStore = createMemoryStore(session);
   const sessionSettings: session.SessionOptions = {
-    // Prefer SESSION_SECRET per repo docs; fall back to a dev-friendly default
-    secret: process.env.SESSION_SECRET || process.env.REPL_ID || "document-management-secret",
+    secret: env.sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -51,7 +51,7 @@ export function setupAuth(app: Express) {
     }),
   };
 
-  if (app.get("env") === "production") {
+  if (env.nodeEnv === "production") {
     app.set("trust proxy", 1);
     sessionSettings.cookie = {
       ...(sessionSettings.cookie || {}),

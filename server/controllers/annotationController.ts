@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { db } from '@db';
 import { annotations, insertAnnotationSchema, type User } from '@db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
+import { ApiError, sendErrorResponse } from '../utils/errorHandler';
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -27,9 +28,9 @@ export const AnnotationController = {
           }
         }
       });
-      res.json(allAnnotations);
+      return res.json(allAnnotations);
     } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch annotations' });
+      sendErrorResponse(res, error);
     }
   },
 
@@ -37,11 +38,11 @@ export const AnnotationController = {
     try {
       const result = insertAnnotationSchema.safeParse(req.body);
       if (!result.success) {
-        return res.status(400).json({ error: result.error.message });
+        return sendErrorResponse(res, result.error);
       }
 
       if (!req.user) {
-        return res.status(401).json({ error: 'Authentication required' });
+        return sendErrorResponse(res, new ApiError('Authentication required', 401, 'UNAUTHORIZED'));
       }
 
       const [annotation] = await db.insert(annotations)
@@ -63,9 +64,9 @@ export const AnnotationController = {
         }
       });
 
-      res.status(201).json(fullAnnotation);
+      return res.status(201).json(fullAnnotation);
     } catch (error) {
-      res.status(500).json({ error: 'Failed to create annotation' });
+      sendErrorResponse(res, error);
     }
   },
 
@@ -74,11 +75,11 @@ export const AnnotationController = {
       const { annotationId } = req.params;
       const result = insertAnnotationSchema.safeParse(req.body);
       if (!result.success) {
-        return res.status(400).json({ error: result.error.message });
+        return sendErrorResponse(res, result.error);
       }
 
       if (!req.user) {
-        return res.status(401).json({ error: 'Authentication required' });
+        return sendErrorResponse(res, new ApiError('Authentication required', 401, 'UNAUTHORIZED'));
       }
 
       const [reply] = await db.insert(annotations)
@@ -96,9 +97,9 @@ export const AnnotationController = {
         }
       });
 
-      res.status(201).json(fullReply);
+      return res.status(201).json(fullReply);
     } catch (error) {
-      res.status(500).json({ error: 'Failed to create reply' });
+      sendErrorResponse(res, error);
     }
   },
 
@@ -107,7 +108,7 @@ export const AnnotationController = {
       const { id } = req.params;
 
       if (!req.user) {
-        return res.status(401).json({ error: 'Authentication required' });
+        return sendErrorResponse(res, new ApiError('Authentication required', 401, 'UNAUTHORIZED'));
       }
 
       const [annotation] = await db.select()
@@ -116,19 +117,19 @@ export const AnnotationController = {
         .limit(1);
 
       if (!annotation) {
-        return res.status(404).json({ error: 'Annotation not found' });
+        return sendErrorResponse(res, new ApiError('Annotation not found', 404, 'NOT_FOUND'));
       }
 
       if (annotation.userId !== req.user.id && req.user.role !== 'ADMIN') {
-        return res.status(403).json({ error: 'Not authorized to delete this annotation' });
+        return sendErrorResponse(res, new ApiError('Not authorized to delete this annotation', 403, 'FORBIDDEN'));
       }
 
       await db.delete(annotations)
         .where(eq(annotations.id, parseInt(id)));
 
-      res.json({ message: 'Annotation deleted successfully' });
+      return res.json({ message: 'Annotation deleted successfully' });
     } catch (error) {
-      res.status(500).json({ error: 'Failed to delete annotation' });
+      sendErrorResponse(res, error);
     }
   }
 };

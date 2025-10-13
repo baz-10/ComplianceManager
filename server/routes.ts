@@ -21,6 +21,10 @@ export function registerRoutes(app: Express): Server {
   // Track database queries
   app.use(trackDatabaseQueries);
 
+  app.get('/api/csrf-token', (req, res) => {
+    res.json({ csrfToken: req.csrfToken() });
+  });
+
   // User Management routes (admin only)
   app.get('/api/users', isAdmin, UserController.list);
   app.post('/api/users', isAdmin, UserController.create);

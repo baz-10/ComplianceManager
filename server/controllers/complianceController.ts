@@ -1,11 +1,17 @@
 import { Request, Response } from 'express';
 import { db } from '@db';
-import { 
-  users, policies, sections, manuals, policyVersions, acknowledgements, policyAssignments, 
-  type User, AssignmentTarget, UserRole
+import {
+  users,
+  policies,
+  sections,
+  manuals,
+  acknowledgements,
+  policyAssignments,
+  type User,
 } from '@db/schema';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { ApiError, sendErrorResponse } from '../utils/errorHandler';
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -27,7 +33,7 @@ export const ComplianceController = {
   async getUserCompliance(req: Request, res: Response) {
     try {
       if (!req.user?.organizationId) {
-        return res.status(403).json({ error: 'Organization context required' });
+        return sendErrorResponse(res, new ApiError('Organization context required', 403, 'FORBIDDEN'));
       }
 
       const userId = req.user.id;
@@ -37,7 +43,9 @@ export const ComplianceController = {
       // Use SQL for efficient joins
       const result = await db.execute(sql`
         WITH required_policies AS (
-          SELECT DISTINCT p.id as policy_id
+          SELECT 
+            p.id as policy_id,
+            BOOL_OR(COALESCE(pa.require_ack, true)) as require_ack
           FROM policies p
           JOIN sections s ON s.id = p.section_id
           JOIN manuals m ON m.id = s.manual_id
@@ -49,6 +57,8 @@ export const ComplianceController = {
               OR (pa.target_type = 'USER' AND pa.user_id = ${userId})
             )
         )
+          GROUP BY p.id
+        )
         SELECT 
           p.id,
           p.title,
@@ -58,6 +68,7 @@ export const ComplianceController = {
           s.title as section_title,
           m.id as manual_id,
           m.title as manual_title,
+          rp.require_ack,
           -- ack flag
           CASE WHEN a.id IS NULL THEN false ELSE true END as acked,
           -- read flag via audit logs
@@ -80,27 +91,46 @@ export const ComplianceController = {
         policyId: Number(r.id),
         title: r.title as string,
         live: (r.status as string) === 'LIVE',
+        status: (r.status as string) ?? 'DRAFT',
         currentVersionId: r.current_version_id ? Number(r.current_version_id) : null,
         acked: r.acked === true || r.acked === 'true',
-        read: r.read === true || r.read === 'true'
+        read: r.read === true || r.read === 'true',
+        manual: {
+          id: Number(r.manual_id),
+          title: r.manual_title as string,
+        },
+        section: {
+          id: Number(r.section_id),
+          title: r.section_title as string,
+        },
+        requireAck: r.require_ack === true || r.require_ack === 'true',
       }));
 
       // Readers should only get LIVE policies
       const filtered = req.user.role === 'READER' ? rows.filter(i => i.live) : rows;
 
-      // Map to expected client shape with status enum
-      const payload = filtered.map(i => ({
-        policyId: i.policyId,
-        title: i.title,
-        currentVersionId: i.currentVersionId,
-        status: i.acked ? 'ACKED' as const : (i.read ? 'READ' as const : 'UNREAD' as const),
-        live: i.live
+      const items = filtered.map((item) => ({
+        policyId: item.policyId,
+        title: item.title,
+        status: (item.status as 'DRAFT' | 'LIVE') ?? 'DRAFT',
+        currentVersionId: item.currentVersionId,
+        manual: item.manual,
+        section: item.section,
+        required: true,
+        acked: item.acked,
+        read: item.read,
+        requiresAcknowledgement: item.requireAck,
       }));
 
-      res.json(payload);
+      const totals = {
+        required: items.length,
+        acked: items.filter((i) => i.acked).length,
+        unread: items.filter((i) => !i.read).length,
+      };
+
+      return res.json({ items, totals });
     } catch (error) {
-      console.error('Failed to get user compliance:', error);
-      res.status(500).json({ error: 'Failed to get user compliance' });
+      sendErrorResponse(res, error);
     }
   },
 
@@ -110,7 +140,7 @@ export const ComplianceController = {
       const { policyId } = req.params;
       const parsed = assignmentSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.message });
+        return sendErrorResponse(res, parsed.error);
       }
 
       // Validate policy exists and get its org
@@ -118,7 +148,9 @@ export const ComplianceController = {
         where: eq(policies.id, parseInt(policyId)),
         with: { section: { with: { manual: true } } }
       });
-      if (!policy) return res.status(404).json({ error: 'Policy not found' });
+      if (!policy) {
+        return sendErrorResponse(res, new ApiError('Policy not found', 404, 'NOT_FOUND'));
+      }
 
       // Remove existing assignments
       await db.delete(policyAssignments).where(eq(policyAssignments.policyId, policy.id));
@@ -136,10 +168,9 @@ export const ComplianceController = {
         inserted = await db.insert(policyAssignments).values(values).returning();
       }
 
-      res.json({ message: 'Assignments updated', assignments: inserted });
+      return res.json({ message: 'Assignments updated', assignments: inserted });
     } catch (error) {
-      console.error('Failed to set policy assignments:', error);
-      res.status(500).json({ error: 'Failed to set policy assignments' });
+      sendErrorResponse(res, error);
     }
   },
 
@@ -153,9 +184,14 @@ export const ComplianceController = {
         where: eq(policies.id, parseInt(policyId)),
         with: { section: { with: { manual: true } } }
       });
-      if (!policy) return res.status(404).json({ error: 'Policy not found' });
+      if (!policy) {
+        return sendErrorResponse(res, new ApiError('Policy not found', 404, 'NOT_FOUND'));
+      }
 
       const orgId = policy.section?.manual?.organizationId;
+      if (!orgId) {
+        return sendErrorResponse(res, new ApiError('Policy is missing organization context', 500, 'INTERNAL_ERROR'));
+      }
       const currentVersionId = policy.currentVersionId;
 
       // Get assignments for policy
@@ -203,7 +239,7 @@ export const ComplianceController = {
         ackedSet = new Set(acked.map(a => a.userId));
       }
 
-      res.json({
+      return res.json({
         policy: { id: policy.id, title: policy.title, status: policy.status, currentVersionId },
         assignments: assigns,
         totals: {
@@ -217,8 +253,7 @@ export const ComplianceController = {
         }
       });
     } catch (error) {
-      console.error('Failed to get policy coverage:', error);
-      res.status(500).json({ error: 'Failed to get policy coverage' });
+      sendErrorResponse(res, error);
     }
   }
 };

@@ -4,6 +4,8 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { db, checkDatabaseConnection } from "@db";
 import { errorMiddleware } from "./utils/errorHandler";
+import { setupSecurityMiddleware } from "./middleware/securityMiddleware";
+import { env } from "./config/environment.ts";
 
 const app = express();
 
@@ -11,6 +13,8 @@ const app = express();
 function setupMiddleware() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
+
+  setupSecurityMiddleware(app);
   
   // Serve uploaded images
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
@@ -23,8 +27,9 @@ function setupMiddleware() {
 
     const originalResJson = res.json;
     res.json = function (bodyJson, ...args) {
-      capturedJsonResponse = bodyJson;
-      return originalResJson.apply(res, [bodyJson, ...args]);
+      const normalizedBody = normalizeErrorResponse(bodyJson, res.statusCode);
+      capturedJsonResponse = normalizedBody;
+      return originalResJson.apply(res, [normalizedBody, ...args]);
     };
 
     res.on("finish", () => {
@@ -45,6 +50,70 @@ function setupMiddleware() {
 
     next();
   });
+
+  function normalizeErrorResponse(body: any, statusCode: number) {
+    if (
+      body &&
+      typeof body === "object" &&
+      !Array.isArray(body) &&
+      "error" in body &&
+      !("success" in body)
+    ) {
+      const rawError = body.error;
+      const message =
+        typeof rawError === "string"
+          ? rawError
+          : typeof rawError?.message === "string"
+          ? rawError.message
+          : "An unexpected error occurred. Please try again.";
+      const field =
+        typeof rawError === "object" && typeof rawError?.field === "string"
+          ? rawError.field
+          : undefined;
+      const rawCode =
+        typeof body.code === "string"
+          ? body.code
+          : typeof rawError === "object" && typeof rawError?.code === "string"
+          ? rawError.code
+          : undefined;
+
+      const code =
+        rawCode ??
+        (statusCode === 400
+          ? "BAD_REQUEST"
+          : statusCode === 401
+          ? "UNAUTHORIZED"
+          : statusCode === 403
+          ? "FORBIDDEN"
+          : statusCode === 404
+          ? "NOT_FOUND"
+          : statusCode === 409
+          ? "CONFLICT"
+          : statusCode === 422
+          ? "VALIDATION_ERROR"
+          : "INTERNAL_ERROR");
+
+      const transformed: Record<string, any> = {
+        success: false,
+        error: {
+          message,
+          code,
+        },
+      };
+
+      if (field) {
+        transformed.error.field = field;
+      }
+
+      if (typeof rawError === "object" && rawError?.details) {
+        transformed.error.details = rawError.details;
+      }
+
+      return transformed;
+    }
+
+    return body;
+  }
 }
 
 // Error handling middleware
@@ -87,7 +156,7 @@ async function initializeServer() {
     setupErrorHandler();
 
     // Setup Vite or static files
-    if (app.get("env") === "development") {
+  if (env.nodeEnv === "development") {
       log("Setting up Vite development server...");
       await setupVite(app, server);
     } else {

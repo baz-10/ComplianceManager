@@ -3,6 +3,8 @@ import multer from 'multer';
 import { db } from '@db';
 import { manuals, sections, policies, policyVersions, type User } from '@db/schema';
 import { eq, asc } from 'drizzle-orm';
+import { env } from '../config/environment.ts';
+import { ApiError, sendErrorResponse } from '../utils/errorHandler';
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -19,8 +21,8 @@ const ACCEPTED_MIME = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]);
 
-export const MAX_DOCX_MB = parseInt(process.env.IMPORT_MAX_DOCX_MB || '20', 10);
-export const MAX_PDF_MB = parseInt(process.env.IMPORT_MAX_PDF_MB || '50', 10);
+export const MAX_DOCX_MB = env.importMaxDocxMb;
+export const MAX_PDF_MB = env.importMaxPdfMb;
 
 function getMaxSizeFor(mime: string): number {
   return mime.includes('wordprocessingml') ? MAX_DOCX_MB * 1024 * 1024 : MAX_PDF_MB * 1024 * 1024;
@@ -220,14 +222,21 @@ export const ImportController = {
       const { dryRun, granularity, manualTitle } = req.body as any;
 
       if (!file) {
-        return res.status(400).json({ error: 'No file uploaded. Use field name "document".' });
+        return sendErrorResponse(res, new ApiError('No file uploaded. Use field name "document".', 400, 'BAD_REQUEST'));
       }
       if (!ACCEPTED_MIME.has(file.mimetype)) {
-        return res.status(400).json({ error: 'Unsupported file type. Only PDF and DOCX are accepted.' });
+        return sendErrorResponse(res, new ApiError('Unsupported file type. Only PDF and DOCX are accepted.', 400, 'UNSUPPORTED_MEDIA_TYPE'));
       }
       const max = getMaxSizeFor(file.mimetype);
       if (file.size > max) {
-        return res.status(413).json({ error: `File too large. Max size is ${Math.round(max / (1024*1024))} MB for this type.` });
+        return sendErrorResponse(
+          res,
+          new ApiError(
+            `File too large. Max size is ${Math.round(max / (1024 * 1024))} MB for this type.`,
+            413,
+            'PAYLOAD_TOO_LARGE',
+          ),
+        );
       }
 
       const title = manualTitle?.trim() || file.originalname.replace(/\.(pdf|docx)$/i, '') || 'Imported Manual';
@@ -249,8 +258,7 @@ export const ImportController = {
       return res.json({ message: 'Import completed', manualId: manual.id });
     } catch (error: any) {
       console.error('Import failed:', error);
-      return res.status(500).json({ error: error?.message || 'Failed to import document' });
+      return sendErrorResponse(res, error);
     }
   }
 };
-

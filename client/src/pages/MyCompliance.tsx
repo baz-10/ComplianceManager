@@ -19,7 +19,7 @@ interface ComplianceItem {
   policyId: number;
   title: string;
   status: 'DRAFT' | 'LIVE';
-  currentVersionId: number;
+  currentVersionId: number | null;
   manual: {
     id: number;
     title: string;
@@ -31,6 +31,7 @@ interface ComplianceItem {
   required: boolean;
   acked: boolean;
   read: boolean;
+  requiresAcknowledgement?: boolean;
 }
 
 interface ComplianceResponse {
@@ -51,55 +52,21 @@ export function MyCompliance() {
     queryKey: ['/api/user/compliance'],
     queryFn: async () => {
       const response = await fetch('/api/user/compliance', {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+        },
       });
-      
+
       if (!response.ok) {
-        // Return mock data if API not implemented yet
-        return {
-          items: [
-            {
-              policyId: 1,
-              title: "Safety Procedures and Guidelines",
-              status: 'LIVE',
-              currentVersionId: 1,
-              manual: { id: 1, title: "Operations Manual" },
-              section: { id: 1, title: "General Safety" },
-              required: true,
-              acked: false,
-              read: false
-            },
-            {
-              policyId: 2,
-              title: "Data Protection Policy",
-              status: 'LIVE',
-              currentVersionId: 2,
-              manual: { id: 1, title: "Operations Manual" },
-              section: { id: 2, title: "Information Security" },
-              required: true,
-              acked: false,
-              read: true
-            },
-            {
-              policyId: 3,
-              title: "Emergency Response Procedures",
-              status: 'LIVE',
-              currentVersionId: 3,
-              manual: { id: 1, title: "Operations Manual" },
-              section: { id: 3, title: "Emergency Protocols" },
-              required: true,
-              acked: true,
-              read: true
-            }
-          ],
-          totals: {
-            required: 3,
-            acked: 1,
-            unread: 1
-          }
-        } as ComplianceResponse;
+        const errorBody = await response.json().catch(() => null);
+        const message =
+          errorBody?.error?.message ??
+          errorBody?.message ??
+          'Failed to load compliance requirements.';
+        throw new Error(message);
       }
-      
+
       return response.json();
     }
   });
@@ -187,6 +154,22 @@ export function MyCompliance() {
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-destructive flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              Unable to load compliance requirements
+            </CardTitle>
+            <CardDescription>{(error as Error).message}</CardDescription>
+          </CardHeader>
+        </Card>
       </div>
     );
   }
@@ -290,12 +273,17 @@ export function MyCompliance() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <CardTitle className="text-base line-clamp-1">{item.title}</CardTitle>
-                      <CardDescription className="flex items-center gap-4 mt-1">
+                      <CardDescription className="flex items-center gap-4 mt-1 flex-wrap">
                         <span>{item.manual.title}</span>
                         <span>• {item.section.title}</span>
                         {item.status === 'DRAFT' && (
                           <Badge variant="outline" className="text-xs">
                             Draft
+                          </Badge>
+                        )}
+                        {item.requiresAcknowledgement && (
+                          <Badge variant="secondary" className="text-xs">
+                            Ack Required
                           </Badge>
                         )}
                       </CardDescription>
@@ -308,7 +296,7 @@ export function MyCompliance() {
                 <CardContent className="pt-0">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-muted-foreground">
-                      Version: {item.currentVersionId}
+                      Version: {item.currentVersionId ?? '—'}
                     </div>
                     <Button
                       variant="outline"
