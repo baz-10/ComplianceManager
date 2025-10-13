@@ -132,7 +132,7 @@ export const SectionController = {
       }
 
       // Build hierarchical structure
-      const sectionMap = new Map();
+      const sectionMap = new Map<number, any>();
       const rootSections: any[] = [];
 
       // First, create a map of all sections
@@ -187,7 +187,12 @@ export const SectionController = {
       // surface them as top-level to avoid empty UI
       if (rootSections.length === 0 && allSections.length > 0) {
         console.warn(`[Sections] No root nodes built for manual ${manualId}, flattening ${allSections.length} sections as roots`);
-        rootSections = allSections.map(s => ({ ...s, children: [] }));
+        rootSections.push(
+          ...allSections.map((s) => ({
+            ...s,
+            children: [],
+          }))
+        );
       }
 
       res.json(rootSections);
