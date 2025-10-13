@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
-import cors from 'cors';
+import cors, { type CorsOptions } from 'cors';
 import csrf from 'csurf';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
@@ -29,19 +29,25 @@ export function setupSecurityMiddleware(app: Express) {
       : false,
   }));
 
-  app.use(
-    cors({
-      origin(origin: string | undefined, callback) {
-        if (!origin || env.allowedOrigins.includes(origin)) {
-          callback(null, true);
-          return;
-        }
-        callback(new Error('Origin not allowed by CORS'));
-      },
-      credentials: true,
-      optionsSuccessStatus: 200,
-    }),
-  );
+  const corsOptions: CorsOptions = env.allowedOrigins
+    ? {
+        origin(origin: string | undefined, callback) {
+          if (!origin || env.allowedOrigins!.includes(origin)) {
+            callback(null, true);
+            return;
+          }
+          callback(new Error('Origin not allowed by CORS'));
+        },
+        credentials: true,
+        optionsSuccessStatus: 200,
+      }
+    : {
+        origin: true,
+        credentials: true,
+        optionsSuccessStatus: 200,
+      };
+
+  app.use(cors(corsOptions));
 
   app.use(cookieParser());
   app.use(apiRateLimiter);

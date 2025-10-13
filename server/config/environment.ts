@@ -36,7 +36,7 @@ const environmentSchema = z.object({
   allowedOrigins:
     values.ALLOWED_ORIGINS && values.ALLOWED_ORIGINS.length > 0
       ? values.ALLOWED_ORIGINS
-      : ['http://localhost:5173', 'http://localhost:5000', 'http://localhost:3000'],
+      : null,
   importMaxDocxMb: values.IMPORT_MAX_DOCX_MB ?? 20,
   importMaxPdfMb: values.IMPORT_MAX_PDF_MB ?? 50,
 }));
