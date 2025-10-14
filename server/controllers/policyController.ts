@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '@db';
-import { policies, policyVersions, acknowledgements, annotations, auditLogs, type Policy, type User } from '@db/schema';
+import { policies, policyVersions, acknowledgements, annotations, auditLogs, policyAssignments, sections, manuals, type Policy, type User } from '@db/schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 import { z } from 'zod';
 import { ApiError, sendErrorResponse } from '../utils/errorHandler';
@@ -27,10 +27,79 @@ const updatePolicySchema = z.object({
   status: z.enum(["DRAFT", "LIVE"]).optional(),
 });
 
+async function assertSectionOwnership(req: Request, sectionId: number) {
+  const section = await db.query.sections.findFirst({
+    where: eq(sections.id, sectionId),
+    columns: { id: true, manualId: true }
+  });
+
+  if (!section) {
+    throw new ApiError('Section not found', 404, 'NOT_FOUND');
+  }
+
+  const manual = await db.query.manuals.findFirst({
+    where: eq(manuals.id, section.manualId),
+    columns: { id: true, organizationId: true }
+  });
+
+  if (!manual || !req.user?.organizationId || manual.organizationId !== req.user.organizationId) {
+    throw new ApiError('Section not found', 404, 'NOT_FOUND');
+  }
+
+  return { section, manual };
+}
+
+async function assertPolicyOwnership(req: Request, policyId: number) {
+  const policy = await db.query.policies.findFirst({
+    where: eq(policies.id, policyId),
+    columns: {
+      id: true,
+      sectionId: true,
+      status: true,
+      currentVersionId: true,
+      title: true
+    }
+  });
+
+  if (!policy) {
+    throw new ApiError('Policy not found', 404, 'NOT_FOUND');
+  }
+
+  const context = await assertSectionOwnership(req, policy.sectionId);
+  return { policy, ...context };
+}
+
+async function ensureDefaultAllAssignment(policyId: number) {
+  try {
+    const existing = await db.query.policyAssignments.findFirst({
+      where: and(
+        eq(policyAssignments.policyId, policyId),
+        eq(policyAssignments.targetType, 'ALL')
+      ),
+      columns: { id: true }
+    });
+
+    if (!existing) {
+      await db.insert(policyAssignments).values({
+        policyId,
+        targetType: 'ALL',
+        requireAcknowledgement: true
+      });
+    }
+  } catch (error: any) {
+    if (error?.code === '42P01') {
+      console.warn('[Policy] policy_assignments table not found; default ALL assignment skipped');
+      return;
+    }
+    throw error;
+  }
+}
+
 export const PolicyController = {
   async list(req: Request, res: Response) {
     try {
       const { sectionId } = req.params;
+      await assertSectionOwnership(req, parseInt(sectionId, 10));
       const isReader = (req.user as any)?.role === 'READER';
       const whereClause = isReader
         ? and(eq(policies.sectionId, parseInt(sectionId)), eq(policies.status, 'LIVE'))
@@ -59,7 +128,13 @@ export const PolicyController = {
         return sendErrorResponse(res, result.error);
       }
 
+      if (!req.user) {
+        throw new ApiError('Authentication required', 401, 'UNAUTHORIZED');
+      }
+
       const { policy: policyData, version: versionData } = result.data;
+      await assertSectionOwnership(req, policyData.sectionId);
+      const userId = req.user.id;
 
       // Get the next order index for this section
       const existingPolicies = await db.query.policies.findMany({
@@ -74,7 +149,7 @@ export const PolicyController = {
           title: policyData.title,
           sectionId: policyData.sectionId,
           status: policyData.status,
-          createdById: policyData.createdById,
+          createdById: userId,
           orderIndex: nextOrderIndex,
         })
         .returning();
@@ -88,7 +163,7 @@ export const PolicyController = {
           versionNumber: versionData.versionNumber,
           bodyContent: versionData.bodyContent,
           effectiveDate: new Date(versionData.effectiveDate),
-          authorId: versionData.authorId,
+          authorId: userId,
         })
         .returning();
 
@@ -102,6 +177,8 @@ export const PolicyController = {
         .returning();
 
       console.log('Policy updated with current version:', updatedPolicy);
+
+      await ensureDefaultAllAssignment(policy.id);
 
       res.status(201).json({
         policy: updatedPolicy,
@@ -128,6 +205,8 @@ export const PolicyController = {
         throw new ApiError('Policy not found', 404, 'NOT_FOUND');
       }
 
+      await assertSectionOwnership(req, policy.sectionId);
+
       res.json(policy);
     } catch (error) {
       console.error('Failed to fetch policy:', error);
@@ -148,6 +227,8 @@ export const PolicyController = {
       if (!policy) {
         throw new ApiError('Policy not found', 404, 'NOT_FOUND');
       }
+
+      await assertSectionOwnership(req, policy.sectionId);
 
       const newVersionNumber = policy.versions.length + 1;
       const [version] = await db.insert(policyVersions)
@@ -180,9 +261,12 @@ export const PolicyController = {
         return sendErrorResponse(res, result.error);
       }
 
+      const numericPolicyId = parseInt(policyId, 10);
+      await assertPolicyOwnership(req, numericPolicyId);
+
       // Fetch existing policy to detect status changes for audit logging
       const existing = await db.query.policies.findFirst({
-        where: eq(policies.id, parseInt(policyId)),
+        where: eq(policies.id, numericPolicyId),
         with: { currentVersion: true }
       });
 
@@ -193,12 +277,14 @@ export const PolicyController = {
           status: result.data.status,
           updatedAt: new Date()
         })
-        .where(eq(policies.id, parseInt(policyId)))
+        .where(eq(policies.id, numericPolicyId))
         .returning();
 
       if (!updatedPolicy) {
         throw new ApiError('Policy not found', 404, 'NOT_FOUND');
       }
+
+      await ensureDefaultAllAssignment(updatedPolicy.id);
 
       // If status changed, log publish/unpublish event
       try {
@@ -226,9 +312,11 @@ export const PolicyController = {
   async delete(req: Request, res: Response) {
     try {
       const { policyId } = req.params;
+      const numericPolicyId = parseInt(policyId, 10);
+      await assertPolicyOwnership(req, numericPolicyId);
 
       // Delete the policy row; ON DELETE CASCADE cleans up versions, acknowledgements, annotations
-      const result = await db.delete(policies).where(eq(policies.id, parseInt(policyId))).returning();
+      const result = await db.delete(policies).where(eq(policies.id, numericPolicyId)).returning();
       if (!result || result.length === 0) {
         return res.status(404).json({ error: 'Policy not found' });
       }
@@ -272,6 +360,8 @@ export const PolicyController = {
       if (!policy || !policy.currentVersion) {
         return res.status(404).json({ error: 'Policy or current version not found' });
       }
+
+      await assertSectionOwnership(req, policy.sectionId);
 
       // Check if already acknowledged
       const existing = await db.query.acknowledgements.findFirst({
@@ -325,12 +415,14 @@ export const PolicyController = {
 
       const policy = await db.query.policies.findFirst({
         where: eq(policies.id, parseInt(policyId)),
-        columns: { id: true, currentVersionId: true, title: true }
+        columns: { id: true, currentVersionId: true, title: true, sectionId: true }
       });
 
       if (!policy) {
         return res.status(404).json({ error: 'Policy not found' });
       }
+
+      await assertSectionOwnership(req, policy.sectionId);
 
       // Log a lightweight audit entry instead of a separate policy_views table for now
       try {
@@ -353,6 +445,7 @@ export const PolicyController = {
   async getVersionHistory(req: Request, res: Response) {
     try {
       const { policyId } = req.params;
+      await assertPolicyOwnership(req, parseInt(policyId, 10));
       const versions = await db.query.policyVersions.findMany({
         where: eq(policyVersions.policyId, parseInt(policyId)),
         orderBy: policyVersions.versionNumber,
@@ -382,10 +475,12 @@ export const PolicyController = {
         return res.status(400).json({ error: 'Invalid order map' });
       }
 
+      const { section } = await assertSectionOwnership(req, parseInt(sectionId, 10));
+
       const updates = orderMap.map((policyId, index) =>
         db.update(policies)
           .set({ orderIndex: index })
-          .where(eq(policies.id, policyId))
+          .where(and(eq(policies.id, policyId), eq(policies.sectionId, section.id)))
       );
 
       await Promise.all(updates);
@@ -401,10 +496,11 @@ export const PolicyController = {
   async fixOrderIndices(req: Request, res: Response) {
     try {
       const { sectionId } = req.params;
+      const { section } = await assertSectionOwnership(req, parseInt(sectionId, 10));
       
       // Get all policies in the section ordered by creation time
       const sectionPolicies = await db.query.policies.findMany({
-        where: eq(policies.sectionId, parseInt(sectionId)),
+        where: eq(policies.sectionId, section.id),
         orderBy: [asc(policies.createdAt), asc(policies.id)]
       });
 

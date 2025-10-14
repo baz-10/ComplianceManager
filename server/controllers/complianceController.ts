@@ -184,6 +184,9 @@ export const ComplianceController = {
       if (!policy) {
         return sendErrorResponse(res, new ApiError('Policy not found', 404, 'NOT_FOUND'));
       }
+      if (!req.user?.organizationId || policy.section?.manual?.organizationId !== req.user.organizationId) {
+        return sendErrorResponse(res, new ApiError('Policy not found', 404, 'NOT_FOUND'));
+      }
 
       // Remove existing assignments
       await db.delete(policyAssignments).where(eq(policyAssignments.policyId, policy.id));
@@ -218,6 +221,9 @@ export const ComplianceController = {
         with: { section: { with: { manual: true } } }
       });
       if (!policy) {
+        return sendErrorResponse(res, new ApiError('Policy not found', 404, 'NOT_FOUND'));
+      }
+      if (!req.user?.organizationId || policy.section?.manual?.organizationId !== req.user.organizationId) {
         return sendErrorResponse(res, new ApiError('Policy not found', 404, 'NOT_FOUND'));
       }
 

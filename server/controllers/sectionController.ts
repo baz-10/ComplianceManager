@@ -9,12 +9,33 @@ declare module 'express-serve-static-core' {
   }
 }
 
+async function getManualForUser(req: Request, manualId: number) {
+  if (!req.user?.organizationId) {
+    return null;
+  }
+
+  return db.query.manuals.findFirst({
+    where: and(
+      eq(manuals.id, manualId),
+      eq(manuals.organizationId, req.user.organizationId)
+    ),
+    columns: { id: true }
+  });
+}
+
 export const SectionController = {
   async list(req: Request, res: Response) {
     try {
       const { manualId } = req.params;
+      const manualIdNum = parseInt(manualId, 10);
+      const manual = await getManualForUser(req, manualIdNum);
+
+      if (!manual) {
+        return res.status(404).json({ error: 'Manual not found or access denied' });
+      }
+
       const allSections = await db.query.sections.findMany({
-        where: eq(sections.manualId, parseInt(manualId)),
+        where: eq(sections.manualId, manualIdNum),
         with: {
           policies: true,
           createdBy: true,
@@ -34,26 +55,18 @@ export const SectionController = {
   async getHierarchy(req: Request, res: Response) {
     try {
       const { manualId } = req.params;
+      const manualIdNum = parseInt(manualId, 10);
       console.log('Getting hierarchy for manualId:', manualId);
       
-      // First verify the manual belongs to the user's organization
-      if (req.user?.organizationId) {
-        const manual = await db.query.manuals.findFirst({
-          where: and(
-            eq(manuals.id, parseInt(manualId)),
-            eq(manuals.organizationId, req.user.organizationId)
-          )
-        });
-        
-        if (!manual) {
-          console.log('Manual not found or access denied for org:', req.user.organizationId);
-          return res.status(404).json({ error: 'Manual not found or access denied' });
-        }
+      const manual = await getManualForUser(req, manualIdNum);
+      if (!manual) {
+        console.log('Manual not found or access denied for org:', req.user?.organizationId);
+        return res.status(404).json({ error: 'Manual not found or access denied' });
       }
       
       // Get all sections for the manual
       const allSections = await db.query.sections.findMany({
-        where: eq(sections.manualId, parseInt(manualId)),
+        where: eq(sections.manualId, manualIdNum),
         with: {
           policies: {
             with: {
@@ -330,6 +343,11 @@ export const SectionController = {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
+      const manual = await getManualForUser(req, result.data.manualId);
+      if (!manual) {
+        return res.status(404).json({ error: 'Manual not found or access denied' });
+      }
+
       // Determine the level based on parent section
       let level = 0;
       if (result.data.parentSectionId) {
@@ -386,12 +404,27 @@ export const SectionController = {
         return res.status(400).json({ error: result.error.message });
       }
 
+      const sectionId = parseInt(id, 10);
+      const sectionRecord = await db.query.sections.findFirst({
+        where: eq(sections.id, sectionId),
+        columns: { manualId: true }
+      });
+
+      if (!sectionRecord) {
+        return res.status(404).json({ error: 'Section not found' });
+      }
+
+      const manual = await getManualForUser(req, sectionRecord.manualId);
+      if (!manual) {
+        return res.status(404).json({ error: 'Manual not found or access denied' });
+      }
+
       const [section] = await db.update(sections)
         .set({
           ...result.data,
           updatedAt: new Date()
         })
-        .where(eq(sections.id, parseInt(id)))
+        .where(eq(sections.id, sectionId))
         .returning();
 
       if (!section) {
@@ -494,6 +527,11 @@ export const SectionController = {
         return res.status(404).json({ error: 'Section not found' });
       }
 
+      const manual = await getManualForUser(req, section.manualId);
+      if (!manual) {
+        return res.status(404).json({ error: 'Manual not found or access denied' });
+      }
+
       // Begin transaction to ensure all related records are deleted
       await db.transaction(async (tx) => {
         await SectionController.deleteWithChildren(tx, parseInt(id));
@@ -531,6 +569,11 @@ export const SectionController = {
 
       if (!section) {
         return res.status(404).json({ error: 'Section not found' });
+      }
+
+      const manual = await getManualForUser(req, section.manualId);
+      if (!manual) {
+        return res.status(404).json({ error: 'Manual not found or access denied' });
       }
 
       await db.transaction(async (tx) => {
@@ -653,7 +696,7 @@ export const SectionController = {
               orderIndex: i,
               updatedAt: new Date()
             })
-            .where(eq(sections.id, section.id))
+            .where(and(eq(sections.id, section.id), eq(sections.manualId, manualId)))
         );
 
         // Recursively renumber children
@@ -675,6 +718,12 @@ export const SectionController = {
         return res.status(400).json({ error: 'Invalid hierarchical order' });
       }
 
+      const manualIdNum = parseInt(manualId, 10);
+      const manual = await getManualForUser(req, manualIdNum);
+      if (!manual) {
+        return res.status(404).json({ error: 'Manual not found or access denied' });
+      }
+
       // Function to recursively update section order
       const updateSectionOrder = async (items: any[], parentId: number | null = null, level: number = 0) => {
         const updates = [];
@@ -684,7 +733,7 @@ export const SectionController = {
           
           // Generate new section number
           const sectionNumber = parentId 
-            ? await SectionController.generateSectionNumber(parseInt(manualId), parentId)
+            ? await SectionController.generateSectionNumber(manualIdNum, parentId)
             : `${i + 1}.0`;
 
           updates.push(
@@ -696,7 +745,7 @@ export const SectionController = {
                 sectionNumber,
                 updatedAt: new Date()
               })
-              .where(eq(sections.id, item.id))
+              .where(and(eq(sections.id, item.id), eq(sections.manualId, manualIdNum)))
           );
 
           // Recursively handle children
@@ -714,7 +763,7 @@ export const SectionController = {
 
       // Normalize numbering after reparent/reorder to ensure consistency
       const allSections = await db.query.sections.findMany({
-        where: eq(sections.manualId, parseInt(manualId)),
+        where: eq(sections.manualId, manualIdNum),
         orderBy: [asc(sections.level), asc(sections.orderIndex)]
       });
 
@@ -741,7 +790,7 @@ export const SectionController = {
                 orderIndex: i,
                 updatedAt: new Date()
               })
-              .where(eq(sections.id, section.id))
+              .where(and(eq(sections.id, section.id), eq(sections.manualId, manualIdNum)))
           );
 
           const childUpdates = await renumberSections(section.id, level + 1, newSectionNumber);
@@ -763,10 +812,15 @@ export const SectionController = {
   async renumberAllSections(req: Request, res: Response) {
     try {
       const { manualId } = req.params;
+      const manualIdNum = parseInt(manualId, 10);
+      const manual = await getManualForUser(req, manualIdNum);
+      if (!manual) {
+        return res.status(404).json({ error: 'Manual not found or access denied' });
+      }
       
       // Get all sections for the manual ordered by level and current order
       const allSections = await db.query.sections.findMany({
-        where: eq(sections.manualId, parseInt(manualId)),
+        where: eq(sections.manualId, manualIdNum),
         orderBy: [asc(sections.level), asc(sections.orderIndex)]
       });
 
@@ -796,7 +850,7 @@ export const SectionController = {
                 orderIndex: i,
                 updatedAt: new Date()
               })
-              .where(eq(sections.id, section.id))
+              .where(and(eq(sections.id, section.id), eq(sections.manualId, manualIdNum)))
           );
 
           // Recursively handle children
