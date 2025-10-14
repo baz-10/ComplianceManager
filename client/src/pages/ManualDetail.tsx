@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -521,23 +521,31 @@ export function ManualDetail() {
 
   // Client-side state for collapsed sections
   const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
+  const sectionsInitializedRef = useRef(false);
   
   // Initialize sections with policies as collapsed when data loads
   useEffect(() => {
-    if (rawHierarchicalSections && collapsedSections.size === 0) {
-      const initialCollapsed = new Set<number>();
-      const addCollapsedSections = (sections: any[]) => {
-        sections?.forEach((section: any) => {
-          if (section.policies?.length > 0) {
-            initialCollapsed.add(section.id);
-          }
-          addCollapsedSections(section.children || []);
-        });
-      };
-      addCollapsedSections(rawHierarchicalSections);
-      setCollapsedSections(initialCollapsed);
+    if (!rawHierarchicalSections || sectionsInitializedRef.current) {
+      return;
     }
-  }, [rawHierarchicalSections, collapsedSections.size]);
+    const initialCollapsed = new Set<number>();
+    const addCollapsedSections = (sections: any[]) => {
+      sections?.forEach((section: any) => {
+        if (section.policies?.length > 0) {
+          initialCollapsed.add(section.id);
+        }
+        addCollapsedSections(section.children || []);
+      });
+    };
+    addCollapsedSections(rawHierarchicalSections);
+    setCollapsedSections(initialCollapsed);
+    sectionsInitializedRef.current = true;
+  }, [rawHierarchicalSections]);
+
+  useEffect(() => {
+    sectionsInitializedRef.current = false;
+    setCollapsedSections(new Set());
+  }, [id]);
 
   // Add collapse state to sections
   const hierarchicalSections = rawHierarchicalSections?.map((section: any) => {
