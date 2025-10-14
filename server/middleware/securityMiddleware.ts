@@ -50,10 +50,10 @@ export function setupSecurityMiddleware(app: Express) {
   app.use(cors(corsOptions));
 
   app.use(cookieParser());
-  app.use(apiRateLimiter);
-  app.use(csrfProtection);
-
-  app.use((req: Request, res: Response, next: NextFunction) => {
+  // Rate limiting should apply only to API routes so Vite/module loads aren't throttled
+  app.use('/api', apiRateLimiter);
+  // Attach CSRF protection to API routes and expose fresh tokens
+  app.use('/api', csrfProtection, (req: Request, res: Response, next: NextFunction) => {
     try {
       const token = req.csrfToken();
       res.setHeader('x-csrf-token', token);
