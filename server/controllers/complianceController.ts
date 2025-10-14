@@ -41,60 +41,117 @@ export const ComplianceController = {
       const orgId = req.user.organizationId;
 
       // Use SQL for efficient joins
-      const result = await db.execute(sql`
-        WITH relevant_policies AS (
+      let result: { rows: any[] };
+      try {
+        result = await db.execute(sql`
+          WITH relevant_policies AS (
+            SELECT
+              p.id AS policy_id,
+              p.title,
+              p.status,
+              p.current_version_id,
+              s.id AS section_id,
+              s.title AS section_title,
+              m.id AS manual_id,
+              m.title AS manual_title,
+              COALESCE(BOOL_OR(COALESCE(pa.require_ack, true)), false) AS require_ack,
+              COUNT(pa.policy_id) AS assignment_matches
+            FROM policies p
+            JOIN sections s ON s.id = p.section_id
+            JOIN manuals m ON m.id = s.manual_id
+            LEFT JOIN policy_assignments pa
+              ON pa.policy_id = p.id
+              AND (
+                pa.target_type = 'ALL'
+                OR (pa.target_type = 'ROLE' AND pa.role = ${userRole})
+                OR (pa.target_type = 'USER' AND pa.user_id = ${userId})
+              )
+            WHERE m.organization_id = ${orgId}
+            GROUP BY
+              p.id, p.title, p.status, p.current_version_id,
+              s.id, s.title,
+              m.id, m.title
+            HAVING COUNT(pa.policy_id) > 0
+          )
           SELECT
-            p.id AS policy_id,
-            p.title,
-            p.status,
-            p.current_version_id,
-            s.id AS section_id,
-            s.title AS section_title,
-            m.id AS manual_id,
-            m.title AS manual_title,
-            COALESCE(BOOL_OR(COALESCE(pa.require_ack, true)), false) AS require_ack,
-            COUNT(pa.policy_id) AS assignment_matches
-          FROM policies p
-          JOIN sections s ON s.id = p.section_id
-          JOIN manuals m ON m.id = s.manual_id
-          LEFT JOIN policy_assignments pa
-            ON pa.policy_id = p.id
-            AND (
-              pa.target_type = 'ALL'
-              OR (pa.target_type = 'ROLE' AND pa.role = ${userRole})
-              OR (pa.target_type = 'USER' AND pa.user_id = ${userId})
+            rp.policy_id AS id,
+            rp.title,
+            rp.status,
+            rp.current_version_id,
+            rp.section_id,
+            rp.section_title,
+            rp.manual_id,
+            rp.manual_title,
+            rp.require_ack,
+            CASE WHEN a.id IS NULL THEN false ELSE true END AS acked,
+            CASE WHEN EXISTS (
+              SELECT 1 FROM audit_logs al
+              WHERE al.user_id = ${userId}
+                AND al.entity_type = 'policy'
+                AND al.action = 'VIEW'
+                AND al.entity_id = rp.policy_id
+            ) THEN true ELSE false END AS read
+          FROM relevant_policies rp
+          LEFT JOIN acknowledgements a
+            ON a.policy_version_id = rp.current_version_id
+            AND a.user_id = ${userId}
+          ORDER BY rp.manual_title, rp.section_title, rp.title
+        `);
+      } catch (error: any) {
+        if (error?.code === '42P01') {
+          console.warn('[Compliance] audit_logs table not found, falling back without read tracking');
+          result = await db.execute(sql`
+            WITH relevant_policies AS (
+              SELECT
+                p.id AS policy_id,
+                p.title,
+                p.status,
+                p.current_version_id,
+                s.id AS section_id,
+                s.title AS section_title,
+                m.id AS manual_id,
+                m.title AS manual_title,
+                COALESCE(BOOL_OR(COALESCE(pa.require_ack, true)), false) AS require_ack,
+                COUNT(pa.policy_id) AS assignment_matches
+              FROM policies p
+              JOIN sections s ON s.id = p.section_id
+              JOIN manuals m ON m.id = s.manual_id
+              LEFT JOIN policy_assignments pa
+                ON pa.policy_id = p.id
+                AND (
+                  pa.target_type = 'ALL'
+                  OR (pa.target_type = 'ROLE' AND pa.role = ${userRole})
+                  OR (pa.target_type = 'USER' AND pa.user_id = ${userId})
+                )
+              WHERE m.organization_id = ${orgId}
+              GROUP BY
+                p.id, p.title, p.status, p.current_version_id,
+                s.id, s.title,
+                m.id, m.title
+              HAVING COUNT(pa.policy_id) > 0
             )
-          WHERE m.organization_id = ${orgId}
-          GROUP BY
-            p.id, p.title, p.status, p.current_version_id,
-            s.id, s.title,
-            m.id, m.title
-          HAVING COUNT(pa.policy_id) > 0
-        )
-        SELECT
-          rp.policy_id AS id,
-          rp.title,
-          rp.status,
-          rp.current_version_id,
-          rp.section_id,
-          rp.section_title,
-          rp.manual_id,
-          rp.manual_title,
-          rp.require_ack,
-          CASE WHEN a.id IS NULL THEN false ELSE true END AS acked,
-          CASE WHEN EXISTS (
-            SELECT 1 FROM audit_logs al
-            WHERE al.user_id = ${userId}
-              AND al.entity_type = 'policy'
-              AND al.action = 'VIEW'
-              AND al.entity_id = rp.policy_id
-          ) THEN true ELSE false END AS read
-        FROM relevant_policies rp
-        LEFT JOIN acknowledgements a
-          ON a.policy_version_id = rp.current_version_id
-          AND a.user_id = ${userId}
-        ORDER BY rp.manual_title, rp.section_title, rp.title
-      `);
+            SELECT
+              rp.policy_id AS id,
+              rp.title,
+              rp.status,
+              rp.current_version_id,
+              rp.section_id,
+              rp.section_title,
+              rp.manual_id,
+              rp.manual_title,
+              rp.require_ack,
+              CASE WHEN a.id IS NULL THEN false ELSE true END AS acked,
+              false AS read
+            FROM relevant_policies rp
+            LEFT JOIN acknowledgements a
+              ON a.policy_version_id = rp.current_version_id
+              AND a.user_id = ${userId}
+            ORDER BY rp.manual_title, rp.section_title, rp.title
+          `);
+        } else {
+          throw error;
+        }
+      }
 
       const rows = result.rows.map((r: any) => ({
         policyId: Number(r.id),

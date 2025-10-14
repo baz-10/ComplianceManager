@@ -103,16 +103,24 @@ export const SectionController = {
         // Using raw SQL for efficiency across many ids
         if (policyIds.length > 0) {
           const pgIn = Array.from(new Set(policyIds));
-          const userViews = await db.query.auditLogs.findMany({
-            where: and(
-              eq(auditLogs.userId, userId),
-              eq(auditLogs.entityType, 'policy'),
-              eq(auditLogs.action, 'VIEW'),
-              inArray(auditLogs.entityId, pgIn)
-            ),
-            columns: { entityId: true }
-          });
-          readSet = new Set(userViews.map(r => Number(r.entityId)));
+          try {
+            const userViews = await db.query.auditLogs.findMany({
+              where: and(
+                eq(auditLogs.userId, userId),
+                eq(auditLogs.entityType, 'policy'),
+                eq(auditLogs.action, 'VIEW'),
+                inArray(auditLogs.entityId, pgIn)
+              ),
+              columns: { entityId: true }
+            });
+            readSet = new Set(userViews.map(r => Number(r.entityId)));
+          } catch (error: any) {
+            if (error?.code === '42P01') {
+              console.warn('[Sections] audit_logs table not found, skipping read tracking');
+            } else {
+              throw error;
+            }
+          }
 
           // Fetch assignments and mark required for this user
           const assigns = await db.query.policyAssignments.findMany({
