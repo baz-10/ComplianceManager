@@ -123,9 +123,19 @@ export const SectionController = {
           }
 
           // Fetch assignments and mark required for this user
-          const assigns = await db.query.policyAssignments.findMany({
-            where: inArray(policyAssignments.policyId, pgIn)
-          });
+          let assigns: any[] = [];
+          try {
+            assigns = await db.query.policyAssignments.findMany({
+              where: inArray(policyAssignments.policyId, pgIn)
+            });
+          } catch (error: any) {
+            if (error?.code === '42P01') {
+              console.warn('[Sections] policy_assignments table not found, skipping requirement flags');
+              assigns = [];
+            } else {
+              throw error;
+            }
+          }
           for (const pid of pgIn) {
             const relevant = assigns.filter(a => a.policyId === pid);
             let isRequired = false;
