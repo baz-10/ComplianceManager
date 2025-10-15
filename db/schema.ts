@@ -89,7 +89,7 @@ export const policies = pgTable("policies", {
 // PolicyVersions table
 export const policyVersions = pgTable("policy_versions", {
   id: serial("id").primaryKey(),
-  policyId: integer("policy_id").references(() => policies.id).notNull(),
+  policyId: integer("policy_id").references(() => policies.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
   versionNumber: integer("version_number").notNull(),
   bodyContent: text("body_content").notNull(),
   effectiveDate: timestamp("effective_date").notNull(),
@@ -103,14 +103,14 @@ export const policyVersions = pgTable("policy_versions", {
 export const acknowledgements = pgTable("acknowledgements", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id).notNull(),
-  policyVersionId: integer("policy_version_id").references(() => policyVersions.id).notNull(),
+  policyVersionId: integer("policy_version_id").references(() => policyVersions.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
   acknowledgedAt: timestamp("acknowledged_at").defaultNow().notNull()
 });
 
 // Policy Assignments table
 export const policyAssignments = pgTable("policy_assignments", {
   id: serial("id").primaryKey(),
-  policyId: integer("policy_id").references(() => policies.id).notNull(),
+  policyId: integer("policy_id").references(() => policies.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
   targetType: AssignmentTarget("target_type").notNull(), // 'ALL' | 'ROLE' | 'USER'
   role: UserRole("role"), // used when targetType = 'ROLE'
   userId: integer("user_id").references(() => users.id), // used when targetType = 'USER'
@@ -121,7 +121,7 @@ export const policyAssignments = pgTable("policy_assignments", {
 // Annotations table with fixed circular reference
 export const annotations = pgTable("annotations", {
   id: serial("id").primaryKey(),
-  policyVersionId: integer("policy_version_id").references(() => policyVersions.id).notNull(),
+  policyVersionId: integer("policy_version_id").references(() => policyVersions.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
   userId: integer("user_id").references(() => users.id).notNull(),
   content: text("content").notNull(),
   startOffset: integer("start_offset").notNull(),
@@ -172,7 +172,7 @@ export const documentSignatures = pgTable("document_signatures", {
 // Policy Approval Workflows
 export const approvalWorkflows = pgTable("approval_workflows", {
   id: serial("id").primaryKey(),
-  policyVersionId: integer("policy_version_id").references(() => policyVersions.id).notNull(),
+  policyVersionId: integer("policy_version_id").references(() => policyVersions.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
   workflowStep: integer("workflow_step").notNull(), // 1, 2, 3, etc.
   approverId: integer("approver_id").references(() => users.id).notNull(),
   status: text("status").notNull(), // 'PENDING', 'APPROVED', 'REJECTED', 'REQUIRES_CHANGES'

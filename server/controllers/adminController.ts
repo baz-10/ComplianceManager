@@ -75,24 +75,32 @@ export const AdminController = {
 
       // Get policies needing attention (excluding policies from archived manuals)
       const policiesNeedingAttentionResult = await db.execute(sql`
+        WITH total_non_admin_users AS (
+          SELECT 
+            COUNT(*)::int AS total_users,
+            NULLIF(COUNT(*)::numeric, 0) AS total_users_metric
+          FROM users 
+          WHERE role != 'ADMIN' AND organization_id = ${orgId}
+        )
         SELECT 
           p.id,
           p.title,
           COUNT(DISTINCT a.id)::int as acknowledgement_count,
           s.title as section_title,
           m.title as manual_title,
-          (SELECT COUNT(*)::int FROM users WHERE role != 'ADMIN' AND organization_id = ${orgId}) as total_users,
-          ROUND((
-            COUNT(DISTINCT a.id)::float 
-            / (SELECT COUNT(*)::float FROM users WHERE role != 'ADMIN' AND organization_id = ${orgId})
-          ) * 100::numeric, 2) as completion_rate
+          t.total_users,
+          CASE 
+            WHEN t.total_users_metric IS NULL THEN 0
+            ELSE ROUND((COUNT(DISTINCT a.id)::numeric / t.total_users_metric) * 100, 2)
+          END as completion_rate
         FROM policies p 
         LEFT JOIN policy_versions pv ON pv.policy_id = p.id
         LEFT JOIN acknowledgements a ON a.policy_version_id = pv.id
         LEFT JOIN sections s ON p.section_id = s.id
         LEFT JOIN manuals m ON s.manual_id = m.id
+        CROSS JOIN total_non_admin_users t
         WHERE m.archived_at IS NULL AND m.organization_id = ${orgId}
-        GROUP BY p.id, p.title, s.title, m.title
+        GROUP BY p.id, p.title, s.title, m.title, t.total_users, t.total_users_metric
         ORDER BY completion_rate ASC
         LIMIT 5
       `);
