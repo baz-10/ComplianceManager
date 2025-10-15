@@ -263,11 +263,11 @@ export const sectionsRelations = relations(sections, ({ one, many }) => ({
   }),
   parentSection: one(sections, {
     fields: [sections.parentSectionId],
-    references: [sections.id]
+    references: [sections.id],
+    relationName: 'sectionHierarchy'
   }),
   childSections: many(sections, {
-    fields: [sections.id],
-    references: [sections.parentSectionId]
+    relationName: 'sectionHierarchy'
   }),
   policies: many(policies)
 }));
