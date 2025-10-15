@@ -22,6 +22,36 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
+
+async function extractErrorMessage(response: Response, fallback: string) {
+  try {
+    const text = await response.clone().text();
+    if (!text) {
+      return fallback;
+    }
+
+    try {
+      const data = JSON.parse(text);
+      if (typeof data === "string" && data.trim()) {
+        return data;
+      }
+
+      const nestedMessage =
+        data?.error?.message || data?.message || data?.error || undefined;
+      if (typeof nestedMessage === "string" && nestedMessage.trim()) {
+        return nestedMessage;
+      }
+    } catch {
+      if (text.trim()) {
+        return text;
+      }
+    }
+  } catch (_error) {
+    // Ignore body parsing errors and fall back to the provided message
+  }
+
+  return fallback;
+}
 // Legacy DnD imports removed — HierarchicalSectionTree handles drag-and-drop internally
 import { PolicyAITools } from "@/components/PolicyAITools";
 import {
@@ -835,7 +865,8 @@ export function ManualDetail() {
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const message = await extractErrorMessage(response, 'Failed to delete policy');
+        throw new Error(message);
       }
 
       return response.json();
@@ -867,18 +898,8 @@ export function ManualDetail() {
       });
 
       if (!response.ok) {
-        try {
-          const errorData = await response.json();
-          // Handle both simple { error: string } and nested { error: { message: string } } formats
-          const errorMessage = typeof errorData.error === 'string' 
-            ? errorData.error 
-            : errorData.error?.message || 'Failed to delete section';
-          throw new Error(errorMessage);
-        } catch (parseError) {
-          // If JSON parsing fails, try to get text
-          const errorText = await response.text();
-          throw new Error(errorText || 'Failed to delete section');
-        }
+        const message = await extractErrorMessage(response, 'Failed to delete section');
+        throw new Error(message);
       }
 
       return response.json();
