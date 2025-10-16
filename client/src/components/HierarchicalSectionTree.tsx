@@ -381,6 +381,7 @@ type CreatePolicyForm = z.infer<typeof createPolicySchema>;
 
 function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onCreatePolicy?: (sectionId: number, data: CreatePolicyForm) => Promise<any> | void }) {
   const [open, setOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useForm<CreatePolicyForm>({
     resolver: zodResolver(createPolicySchema),
     defaultValues: {
@@ -424,12 +425,18 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(async (data) => {
+              if (isSubmitting) {
+                return;
+              }
               try {
+                setIsSubmitting(true);
                 await Promise.resolve(onCreatePolicy(sectionId, data));
                 form.reset();
                 setOpen(false);
               } catch (e) {
                 // Error toasts handled upstream
+              } finally {
+                setIsSubmitting(false);
               }
             })}
             className="space-y-4 flex-1 overflow-y-auto pr-1"
@@ -485,7 +492,7 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
                         type="button"
                         variant="secondary"
                         size="sm"
-                        disabled={isGenerating}
+                        disabled={isGenerating || isSubmitting}
                         onClick={async () => {
                           const topic = (form.getValues() as any).aiTopic as string;
                           const context = (form.getValues() as any).aiContext as string;
@@ -532,7 +539,7 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
                 type="button"
                 variant="ghost"
                 size="sm"
-                disabled={isGenerating}
+                disabled={isGenerating || isSubmitting}
                 onClick={async () => {
                   const topic = (form.getValues() as any).aiTopic as string;
                   const context = (form.getValues() as any).aiContext as string;
@@ -600,7 +607,9 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
               )}
             />
             <div className="flex justify-end">
-              <Button type="submit">Create Policy</Button>
+              <Button type="submit" disabled={isSubmitting || isGenerating}>
+                {isSubmitting ? 'Creating…' : 'Create Policy'}
+              </Button>
             </div>
           </form>
         </Form>
