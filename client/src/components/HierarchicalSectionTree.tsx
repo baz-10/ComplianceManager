@@ -422,6 +422,9 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Create New Policy</DialogTitle>
+          <DialogDescription>
+            Provide the details for the policy you want to add to this section.
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form
