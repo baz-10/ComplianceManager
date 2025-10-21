@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -382,6 +382,7 @@ type CreatePolicyForm = z.infer<typeof createPolicySchema>;
 function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onCreatePolicy?: (sectionId: number, data: CreatePolicyForm) => Promise<any> | void }) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const form = useForm<CreatePolicyForm>({
     resolver: zodResolver(createPolicySchema),
     defaultValues: {
@@ -425,17 +426,19 @@ function AddPolicyButton({ sectionId, onCreatePolicy }: { sectionId: number; onC
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(async (data) => {
-              if (isSubmitting) {
+              if (isSubmittingRef.current) {
                 return;
               }
+              isSubmittingRef.current = true;
+              setIsSubmitting(true);
               try {
-                setIsSubmitting(true);
                 await Promise.resolve(onCreatePolicy(sectionId, data));
                 form.reset();
                 setOpen(false);
               } catch (e) {
                 // Error toasts handled upstream
               } finally {
+                isSubmittingRef.current = false;
                 setIsSubmitting(false);
               }
             })}
