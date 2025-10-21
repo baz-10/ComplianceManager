@@ -63,6 +63,8 @@ import { DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 // Schema for creating sections
 const createSectionSchema = z.object({
@@ -354,7 +356,7 @@ function PolicyRow({
 interface HierarchicalSectionTreeProps {
   sections: HierarchicalSection[];
   manualId: number;
-  onCreateSection: (data: CreateSectionForm & { parentSectionId?: number }) => void;
+  onCreateSection: (data: CreateSectionForm & { parentSectionId?: number }) => Promise<void> | void;
   onUpdateSection: (sectionId: number, data: Partial<HierarchicalSection>) => void;
   onDeleteSection: (sectionId: number) => void;
   onMoveSection: (sectionId: number, parentSectionId: number | null, orderIndex: number) => void;
@@ -641,7 +643,7 @@ function SortableHierarchicalSection({
 }: {
   section: HierarchicalSection;
   level?: number;
-  onCreateSection: (data: CreateSectionForm & { parentSectionId?: number }) => void;
+  onCreateSection: (data: CreateSectionForm & { parentSectionId?: number }) => Promise<void> | void;
   onUpdateSection: (sectionId: number, data: Partial<HierarchicalSection>) => void;
   onDeleteSection: (sectionId: number) => void;
   onToggleCollapse: (sectionId: number) => void;
@@ -655,6 +657,8 @@ function SortableHierarchicalSection({
   const { user } = useUser();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isAddSubsectionOpen, setIsAddSubsectionOpen] = useState(false);
+  const isCreatingSubsectionRef = useRef(false);
+  const [isCreatingSubsection, setIsCreatingSubsection] = useState(false);
   
   const {
     attributes,
@@ -679,10 +683,20 @@ function SortableHierarchicalSection({
     },
   });
 
-  const handleCreateSubsection = (data: CreateSectionForm) => {
-    onCreateSection({ ...data, parentSectionId: section.id });
-    form.reset();
-    setIsAddSubsectionOpen(false);
+  const handleCreateSubsection = async (data: CreateSectionForm) => {
+    if (isCreatingSubsectionRef.current) {
+      return;
+    }
+    isCreatingSubsectionRef.current = true;
+    setIsCreatingSubsection(true);
+    try {
+      await Promise.resolve(onCreateSection({ ...data, parentSectionId: section.id }));
+      form.reset();
+      setIsAddSubsectionOpen(false);
+    } finally {
+      isCreatingSubsectionRef.current = false;
+      setIsCreatingSubsection(false);
+    }
   };
 
   // Filter policies based on "Unread only" setting
@@ -692,6 +706,16 @@ function SortableHierarchicalSection({
 
   const indentationLevel = Math.min(level, 4); // Max 4 levels of visual indentation
   const indentationClass = `ml-${indentationLevel * 6}`;
+  const isTopLevel = level === 0;
+  const levelLabel = isTopLevel ? "Section" : "Subsection";
+  const accentClassName = isTopLevel ? "border-l-4 border-l-primary/30" : "border-l-4 border-l-sky-300";
+  const cardClassName = cn(
+    "group border shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50",
+    accentClassName,
+    isTopLevel ? "bg-card border-primary/30" : "bg-muted/40 border-muted",
+    isDragging && "ring-2 ring-primary/50"
+  );
+  const headerClassName = isTopLevel ? "bg-gradient-to-r from-primary/5 to-transparent py-3" : "bg-muted/60 py-3";
 
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -730,9 +754,9 @@ function SortableHierarchicalSection({
         aria-label={`${section.sectionNumber} ${section.title}`}
         tabIndex={0}
         onKeyDown={handleKeyDown}
-        className={`group border-l-4 border-l-primary/30 shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 ${isDragging ? 'ring-2 ring-primary/50' : ''}`}
+        className={cardClassName}
       >
-        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent py-3">
+        <CardHeader className={headerClassName}>
           <div className="flex items-center gap-3">
             {/* Drag Handle */}
             <span
@@ -768,7 +792,14 @@ function SortableHierarchicalSection({
 
             {/* Section Title */}
             <div className="flex-1">
-              <CardTitle className="text-primary text-lg">{section.title}</CardTitle>
+              <div className="flex items-center gap-2">
+                <Badge variant={isTopLevel ? "default" : "secondary"} className="uppercase tracking-wide text-[10px]">
+                  {levelLabel}
+                </Badge>
+                <CardTitle className={cn("text-lg", isTopLevel ? "text-primary" : "text-foreground")}>
+                  {section.title}
+                </CardTitle>
+              </div>
               {section.description && (
                 <CardDescription className="mt-1">{section.description}</CardDescription>
               )}
@@ -829,6 +860,9 @@ function SortableHierarchicalSection({
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Add Subsection to "{section.title}"</DialogTitle>
+                      <DialogDescription>
+                        Subsections inherit numbering from their parent section.
+                      </DialogDescription>
                     </DialogHeader>
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(handleCreateSubsection)} className="space-y-4">
@@ -857,10 +891,12 @@ function SortableHierarchicalSection({
                           )}
                         />
                         <div className="flex justify-end gap-2">
-                          <Button type="button" variant="outline" onClick={() => setIsAddSubsectionOpen(false)}>
+                          <Button type="button" variant="outline" disabled={isCreatingSubsection} onClick={() => setIsAddSubsectionOpen(false)}>
                             Cancel
                           </Button>
-                          <Button type="submit">Create Subsection</Button>
+                          <Button type="submit" disabled={isCreatingSubsection}>
+                            {isCreatingSubsection ? "Creating..." : "Create Subsection"}
+                          </Button>
                         </div>
                       </form>
                     </Form>

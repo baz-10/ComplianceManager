@@ -1236,8 +1236,8 @@ export function ManualDetail() {
           <HierarchicalSectionTree
             sections={hierarchicalSections || []}
             manualId={Number(id)}
-            onCreateSection={(data) => {
-              createSection.mutate(data);
+            onCreateSection={async (data) => {
+              await createSection.mutateAsync(data);
             }}
             onUpdateSection={(sectionId, data) => {
               // TODO: Implement updateSection mutation
