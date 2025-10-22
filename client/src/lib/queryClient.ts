@@ -9,23 +9,52 @@ export const queryClient = new QueryClient({
           credentials: "include",
         });
 
-        if (!res.ok) {
-          if (res.status === 401) {
-            return null;
-          }
-
-          // Try to parse as JSON error response
-          let errorData;
-          try {
-            errorData = await res.json();
-          } catch {
-            errorData = { error: { message: await res.text(), code: 'UNKNOWN_ERROR' } };
-          }
-
-          throw errorData;
+        if (res.ok) {
+          return res.json();
         }
 
-        return res.json();
+        if (res.status === 401) {
+          return null;
+        }
+
+        let errorPayload: any = {
+          error: {
+            message: res.statusText || "Request failed",
+            code: "UNKNOWN_ERROR",
+          },
+        };
+
+        let rawBody: string | undefined;
+        try {
+          rawBody = await res.text();
+        } catch {
+          rawBody = undefined;
+        }
+
+        if (rawBody) {
+          try {
+            const parsed = JSON.parse(rawBody);
+            if (parsed && typeof parsed === "object") {
+              errorPayload = parsed;
+            } else if (typeof parsed === "string") {
+              errorPayload = {
+                error: {
+                  message: parsed,
+                  code: "UNKNOWN_ERROR",
+                },
+              };
+            }
+          } catch {
+            errorPayload = {
+              error: {
+                message: rawBody,
+                code: "UNKNOWN_ERROR",
+              },
+            };
+          }
+        }
+
+        throw errorPayload;
       },
       refetchInterval: false,
       refetchOnWindowFocus: false,
