@@ -671,6 +671,10 @@ function SortableHierarchicalSection({
 
   const indentationOffset = Math.min(level, 4) * 24; // px
 
+  const baseShadow = isTopLevel ? 'shadow-sm' : 'shadow-inner';
+  const dragShadow = isDragging ? 'ring-2 ring-primary/60 shadow-xl' : baseShadow;
+  const dragTransformClass = isDragging ? 'scale-[1.02]' : '';
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -711,7 +715,9 @@ function SortableHierarchicalSection({
   const levelLabel = isTopLevel ? "Section" : "Subsection";
   const accentClassName = isTopLevel ? "border-l-4 border-l-primary/30" : "border-l-4 border-l-sky-300";
   const cardClassName = cn(
-    "group border shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50",
+    "group border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50",
+    dragTransformClass,
+    dragShadow,
     accentClassName,
     isTopLevel ? "bg-card border-primary/30" : "bg-muted/40 border-muted",
     isDragging && "ring-2 ring-primary/50"
@@ -1028,15 +1034,16 @@ function DropZone({
     <div 
       ref={setNodeRef}
       className={`${indentationClass} transition-all duration-200 ${
-        isActive 
-          ? 'h-8 bg-primary/20 border-2 border-primary border-dashed rounded-lg' 
-          : 'h-2 bg-transparent'
+    isActive 
+      ? 'h-10 bg-primary/10 border-2 border-primary border-dashed rounded-lg flex items-center'
+      : 'h-2 bg-transparent'
       }`}
       data-testid={`drop-zone-${id}`}
     >
       {isActive && (
-        <div className="text-xs text-primary font-medium px-2 py-1 flex items-center">
-          {label}
+        <div className="flex items-center gap-2 px-3 text-xs font-medium text-primary">
+          <ChevronRight className="h-3 w-3" />
+          <span>{label}</span>
         </div>
       )}
     </div>
@@ -1233,7 +1240,15 @@ export function HierarchicalSectionTree({
               {/* Render children */}
               {section.children.length > 0 && (
                 <div className="space-y-2">
-                  {generateDropZones(section.children, level + 1)}
+          {generateDropZones(section.children, level + 1)}
+          {(draggedSection && draggedSection.parentSectionId === section.id) && (
+            <DropZone
+              id={`drop-zone-section-${section.id}-children-end`}
+              level={level + 1}
+              isActive={overId === `drop-zone-section-${section.id}-child`}
+              label={`Drop into "${section.title}"`}
+            />
+          )}
                 </div>
               )}
             </div>
