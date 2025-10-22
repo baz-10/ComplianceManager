@@ -669,10 +669,13 @@ function SortableHierarchicalSection({
     isDragging
   } = useSortable({ id: section.id });
 
+  const indentationOffset = Math.min(level, 4) * 24; // px
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    marginLeft: `${indentationOffset}px`,
   };
 
   const form = useForm<CreateSectionForm>({
@@ -704,8 +707,6 @@ function SortableHierarchicalSection({
     ? section.policies.filter(policy => policy.read === false)
     : section.policies;
 
-  const indentationLevel = Math.min(level, 4); // Max 4 levels of visual indentation
-  const indentationClass = `ml-${indentationLevel * 6}`;
   const isTopLevel = level === 0;
   const levelLabel = isTopLevel ? "Section" : "Subsection";
   const accentClassName = isTopLevel ? "border-l-4 border-l-primary/30" : "border-l-4 border-l-sky-300";
@@ -746,7 +747,7 @@ function SortableHierarchicalSection({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={`${indentationClass} transition-all duration-200`}>
+    <div ref={setNodeRef} style={style} className="transition-all duration-200">
       <Card
         role="treeitem"
         aria-level={level + 1}

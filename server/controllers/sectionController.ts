@@ -233,11 +233,11 @@ export const SectionController = {
     }
   },
 
-  async generateSectionNumber(manualId: number, parentSectionId?: number): Promise<string> {
+  async generateSectionNumber(manualId: number, parentSectionId?: number, client: typeof db | any = db): Promise<string> {
     try {
       if (!parentSectionId) {
         // Top-level section - find the next available number
-        const topLevelSections = await db.query.sections.findMany({
+        const topLevelSections = await client.query.sections.findMany({
           where: and(
             eq(sections.manualId, manualId),
             isNull(sections.parentSectionId)
@@ -249,7 +249,7 @@ export const SectionController = {
         return `${nextNumber}.0`;
       } else {
         // Sub-section - find parent's number and append
-        const parentSection = await db.query.sections.findFirst({
+        const parentSection = await client.query.sections.findFirst({
           where: eq(sections.id, parentSectionId)
         });
         
@@ -258,7 +258,7 @@ export const SectionController = {
         }
 
         // Get sibling sections to determine next sub-number
-        const siblingCount = await db.query.sections.findMany({
+        const siblingCount = await client.query.sections.findMany({
           where: and(
             eq(sections.manualId, manualId),
             eq(sections.parentSectionId, parentSectionId)
@@ -348,48 +348,60 @@ export const SectionController = {
         return res.status(404).json({ error: 'Manual not found or access denied' });
       }
 
-      // Determine the level based on parent section
-      let level = 0;
-      if (result.data.parentSectionId) {
+      const parentSectionId = result.data.parentSectionId ?? null;
+      let baseLevel = 0;
+      if (parentSectionId) {
         const parentSection = await db.query.sections.findFirst({
-          where: eq(sections.id, result.data.parentSectionId)
+          where: eq(sections.id, parentSectionId)
         });
-        if (parentSection) {
-          level = parentSection.level + 1;
+
+        if (!parentSection) {
+          return res.status(404).json({ error: 'Parent section not found' });
         }
+
+        baseLevel = parentSection.level + 1;
       }
 
-      // Generate section number
-      const sectionNumber = await SectionController.generateSectionNumber(
-        result.data.manualId,
-        result.data.parentSectionId
-      );
+      const newSection = await db.transaction(async (tx) => {
+        const sectionNumber = await SectionController.generateSectionNumber(
+          result.data.manualId,
+          parentSectionId ?? undefined,
+          tx
+        );
 
-      // Get the next order index for this level/parent
-      const siblingCount = await db.query.sections.findMany({
-        where: result.data.parentSectionId 
-          ? and(
-              eq(sections.manualId, result.data.manualId),
-              eq(sections.parentSectionId, result.data.parentSectionId)
-            )
-          : and(
-              eq(sections.manualId, result.data.manualId),
-              isNull(sections.parentSectionId)
-            )
+        const siblings = await tx.query.sections.findMany({
+          where: parentSectionId
+            ? and(
+                eq(sections.manualId, result.data.manualId),
+                eq(sections.parentSectionId, parentSectionId)
+              )
+            : and(
+                eq(sections.manualId, result.data.manualId),
+                isNull(sections.parentSectionId)
+              )
+        });
+
+        const [createdSection] = await tx.insert(sections)
+          .values({
+            ...result.data,
+            level: baseLevel,
+            sectionNumber,
+            orderIndex: siblings.length,
+            createdById: req.user.id
+          })
+          .returning();
+
+        await SectionController.renumberSectionsInManual(tx, result.data.manualId);
+
+        const updatedSection = await tx.query.sections.findFirst({
+          where: eq(sections.id, createdSection.id)
+        });
+
+        return updatedSection ?? createdSection;
       });
 
-      const [section] = await db.insert(sections)
-        .values({
-          ...result.data,
-          level,
-          sectionNumber,
-          orderIndex: siblingCount.length,
-          createdById: req.user.id
-        })
-        .returning();
-
-      console.log('Created section:', section);
-      res.status(201).json(section);
+      console.log('Created section:', newSection);
+      res.status(201).json(newSection);
     } catch (error) {
       console.error('Failed to create section:', error);
       res.status(500).json({ error: 'Failed to create section' });
@@ -535,6 +547,7 @@ export const SectionController = {
       // Begin transaction to ensure all related records are deleted
       await db.transaction(async (tx) => {
         await SectionController.deleteWithChildren(tx, parseInt(id));
+        await SectionController.renumberSectionsInManual(tx, section.manualId);
       });
 
       // Log deletion for audit trail (optional, non-blocking)
