@@ -671,10 +671,6 @@ function SortableHierarchicalSection({
 
   const indentationOffset = Math.min(level, 4) * 24; // px
 
-  const baseShadow = isTopLevel ? 'shadow-sm' : 'shadow-inner';
-  const dragShadow = isDragging ? 'ring-2 ring-primary/60 shadow-xl' : baseShadow;
-  const dragTransformClass = isDragging ? 'scale-[1.02]' : '';
-
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -712,6 +708,9 @@ function SortableHierarchicalSection({
     : section.policies;
 
   const isTopLevel = level === 0;
+  const baseShadow = isTopLevel ? 'shadow-sm' : 'shadow-inner';
+  const dragShadow = isDragging ? 'ring-2 ring-primary/60 shadow-xl' : baseShadow;
+  const dragTransformClass = isDragging ? 'scale-[1.02]' : '';
   const levelLabel = isTopLevel ? "Section" : "Subsection";
   const accentClassName = isTopLevel ? "border-l-4 border-l-primary/30" : "border-l-4 border-l-sky-300";
   const cardClassName = cn(
